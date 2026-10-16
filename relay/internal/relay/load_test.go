@@ -2,6 +2,7 @@ package relay_test
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 	"sync"
 	"testing"
@@ -12,7 +13,27 @@ import (
 
 // TestLoad300Subscribers: 300 concurrent subscribers across tiers; release error and memory.
 // (Relay and clients share this process, so the memory figures include the 300 test clients.)
-func TestLoad300Subscribers(t *testing.T) {
+func TestLoad300Subscribers(t *testing.T) { load300(t) }
+
+// TestPerfLoad300Subscribers is the machine-speed half: p95 release error under 100 ms. Local only
+// (SA_PERF=1, `make perf`); CI never runs it.
+func TestPerfLoad300Subscribers(t *testing.T) {
+	perfOnly(t)
+	if st := load300(t); st.p95 > 100 {
+		t.Errorf("p95 release error %.1f ms exceeds 100 ms under load", st.p95)
+	}
+}
+
+// perfOnly skips a performance test unless SA_PERF=1 asks for it.
+func perfOnly(t *testing.T) {
+	t.Helper()
+	if os.Getenv("SA_PERF") != "1" {
+		t.Skip("performance test: run locally with `make perf` (SA_PERF=1)")
+	}
+}
+
+// load300 checks correctness (nothing missing, nothing early) and returns the release-error summary.
+func load300(t *testing.T) stats {
 	r := startRelay(t, "", noThrottle())
 	prov := registerProvider(t, r, 120, defaultRules)
 	const perTier, nSig = 75, 60
@@ -115,8 +136,6 @@ func TestLoad300Subscribers(t *testing.T) {
 	if missing != 0 {
 		t.Errorf("%d deliveries missing", missing)
 	}
-	if st.p95 > 100 {
-		t.Errorf("p95 release error %.1f ms exceeds 100 ms under load", st.p95)
-	}
 	_ = fmt.Sprint
+	return st
 }
