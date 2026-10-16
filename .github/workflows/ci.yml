@@ -76,6 +76,9 @@ jobs:
           cache-dependency-path: relay/go.sum
       - name: gofmt, go vet, go test -race
         run: make check
+        env:
+          # shared 2-core runner under -race: latency budgets x15 (p95 release 100 ms -> 1500 ms); correctness checks unchanged
+          SA_PERF_SCALE: "15"
 
   relay-image:
     name: relay-image
@@ -111,6 +114,9 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - name: biome, tsc --noEmit, bun test with coverage, production build
         run: make web-check
+        env:
+          # happy-dom on a shared runner: 100 ms render/edit budgets x5 (500 ms); correctness checks unchanged
+          SA_PERF_SCALE: "5"
 
   e2e:
     name: e2e

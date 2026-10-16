@@ -376,8 +376,11 @@ func TestBinaryKillNineKeepsPendingRelease(t *testing.T) {
 	pub := dial(t, p1.relayURL)
 	pub.publish(t, prov.ruleSet(300, 1)) // everyone: 5 s at scale 1/60
 	sig := prov.signal(300, 1)
-	pub.publish(t, sig)
+	// The reference is taken BEFORE publishing: the relay stamps its receipt time while handling the
+	// event, i.e. before it answers OK, so a reference read after publish() returns is later than the
+	// relay's and made a correct release look early by the publish round trip (CI saw -7.5 ms).
 	sentAt := time.Now()
+	pub.publish(t, sig)
 	time.Sleep(700 * time.Millisecond)
 	_ = p1.cmd.Process.Signal(syscall.SIGKILL)
 	_, _ = p1.cmd.Process.Wait()
@@ -398,9 +401,26 @@ func TestBinaryKillNineKeepsPendingRelease(t *testing.T) {
 	}
 	want := sentAt.Add(5 * time.Second)
 	t.Logf("kill -9 restart: delivered %.1f ms from its original release time (negative = early)", ms(at.Sub(want)))
-	if e := ms(at.Sub(want)); e < -5 || e > 200 {
-		t.Errorf("release error %.1f ms", e)
+	// Never early (tier fairness, SEP-3.41): the relay's release is receipt+5 s and receipt >= sentAt.
+	if e := ms(at.Sub(want)); e < 0 {
+		t.Errorf("released %.1f ms before its schedule after kill -9 restart", -e)
+	} else if e > 200*perfScale() {
+		t.Errorf("release error %.1f ms exceeds %.0f ms (SA_PERF_SCALE=%g)", e, 200*perfScale(), perfScale())
 	}
+}
+
+// perfScale multiplies the latency budgets (never the correctness checks) for slow shared runners.
+// SA_PERF_SCALE defaults to 1 (a developer machine); CI sets it in .github/workflows/ci.yml.
+func perfScale() float64 {
+	v := os.Getenv("SA_PERF_SCALE")
+	if v == "" {
+		return 1
+	}
+	f, err := strconv.ParseFloat(v, 64)
+	if err != nil || f < 1 {
+		panic(fmt.Sprintf("SA_PERF_SCALE=%q: want a number >= 1 (1 = local budgets); fix or unset it", v))
+	}
+	return f
 }
 
 func ms(d time.Duration) float64 { return float64(d.Microseconds()) / 1000 }
@@ -468,8 +488,8 @@ func TestBinaryLoad300Subscribers(t *testing.T) {
 	if missing != 0 {
 		t.Errorf("%d deliveries missing", missing)
 	}
-	if at(0.95) > 100 {
-		t.Errorf("p95 release error %.1f ms", at(0.95))
+	if budget := 100 * perfScale(); at(0.95) > budget {
+		t.Errorf("p95 release error %.1f ms exceeds %.0f ms (SA_PERF_SCALE=%g)", at(0.95), budget, perfScale())
 	}
 	if strings.Contains(p.stderr.String(), "DATA RACE") {
 		t.Errorf("relay reported a data race:\n%s", p.stderr.String())

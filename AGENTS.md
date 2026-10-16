@@ -31,6 +31,8 @@ make demo-smoke          # `sa demo` headless, every API endpoint asserted
 uv run sa demo           # the whole network locally, dashboard on 127.0.0.1:8787
 ```
 
+- `SA_PERF_SCALE` (default 1, CI sets it in `ci.yml`) multiplies the latency budgets of the relay load/kill tests and the
+  web 200-node test for slow shared runners. It never relaxes correctness checks (missing, order, early release).
 - Python always runs through `uv run` or the project `.venv`. Never a global interpreter, never `pip install`; add
   dependencies with `uv add`.
 - Never skip or bypass the pre-commit hook. A change is ready when `make check`, `make -C relay check` and

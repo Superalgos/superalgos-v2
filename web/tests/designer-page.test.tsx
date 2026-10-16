@@ -324,8 +324,11 @@ describe("performance (SEP-5.11, happy-dom proxy)", () => {
     const editMs = performance.now() - t1;
     expect(host.querySelector(`.react-flow__node[data-id="${id}"]`)?.textContent).toContain("rsi(close, 14) > 31");
     console.log(`200-node proxy: render ${renderMs.toFixed(1)} ms, edit ${editMs.toFixed(1)} ms`);
-    expect(renderMs).toBeLessThan(100);
-    expect(editMs).toBeLessThan(100);
+    // SA_PERF_SCALE widens the budget on slow shared CI runners (default 1 = 100 ms); see ci.yml
+    const scale = Number(process.env.SA_PERF_SCALE ?? "1");
+    if (!(scale >= 1)) throw new Error(`SA_PERF_SCALE=${process.env.SA_PERF_SCALE}: want a number >= 1; fix or unset it`);
+    expect(renderMs).toBeLessThan(100 * scale);
+    expect(editMs).toBeLessThan(100 * scale);
   });
 });
 
