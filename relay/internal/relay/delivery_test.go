@@ -60,7 +60,23 @@ type sent struct {
 }
 
 // TestTierDelays: SEP-3.21. 120 signals of mixed timeframes; measured release delay per tier vs schedule.
-func TestTierDelays(t *testing.T) {
+func TestTierDelays(t *testing.T) { tierDelays(t) }
+
+// TestPerfTierDelays is the machine-speed half: per-tier release error p95 under 50 ms and max under
+// 250 ms. Local only (SA_PERF=1, `make perf`); CI never runs it.
+func TestPerfTierDelays(t *testing.T) {
+	perfOnly(t)
+	for name, st := range tierDelays(t) {
+		if st.p95 > 50 || st.max > 250 {
+			t.Errorf("%s release error too large: p95 %.1f max %.1f ms", name, st.p95, st.max)
+		}
+	}
+}
+
+// tierDelays checks correctness (every signal delivered to every tier, never early, tier order) and
+// returns each follower's release-error summary.
+func tierDelays(t *testing.T) map[string]stats {
+	t.Helper()
 	r := startRelay(t, "")
 	// timeframes are bound at registration: one provider per timeframe
 	tfs := []int64{60, 120, 180, 300}
@@ -99,7 +115,7 @@ func TestTierDelays(t *testing.T) {
 		sents = append(sents, sent{at, tf, ev.ID})
 		time.Sleep(12 * time.Millisecond)
 	}
-	deadline := time.Now().Add(14 * time.Second) // slowest: 2 x 300 s x 1/60 = 10 s
+	deadline := time.Now().Add(harnessWait) // slowest release is 2 x 300 s x 1/60 = 10 s; this only bounds a hang
 	for time.Now().Before(deadline) {
 		done := true
 		for _, f := range fs {
@@ -116,6 +132,7 @@ func TestTierDelays(t *testing.T) {
 	t.Logf("TestTierDelays: scale 1/60, %d signals, timeframes %v s, table 0/0.1/0.5/2", n, tfs)
 	t.Logf("%-8s %5s  %9s %9s %9s  (error = measured delay - scheduled delay, ms)", "follower", "recv", "p50", "p95", "max")
 	var all []float64
+	perTier := map[string]stats{}
 	for _, f := range fs {
 		var errs []float64
 		got := 0
@@ -137,9 +154,7 @@ func TestTierDelays(t *testing.T) {
 		all = append(all, errs...)
 		st := summarize(errs)
 		t.Logf("%-8s %5d  %9.2f %9.2f %9.2f", f.name, got, st.p50, st.p95, st.max)
-		if st.p95 > 50 || st.max > 250 {
-			t.Errorf("%s release error too large: p95 %.1f max %.1f ms", f.name, st.p95, st.max)
-		}
+		perTier[f.name] = st
 	}
 	viol := 0
 	for _, s := range sents {
@@ -157,11 +172,32 @@ func TestTierDelays(t *testing.T) {
 	if viol != 0 {
 		t.Errorf("%d ordering violations (SEP-3.21)", viol)
 	}
+	return perTier
 }
 
 // TestAllocationDeterminesTier: SEP-3.22. 1M SA split 5% / 95% between providers A and B (same default table):
 // tiers follow the allocated power, not the 1M balance (which alone would be T0 with both).
-func TestAllocationDeterminesTier(t *testing.T) {
+func TestAllocationDeterminesTier(t *testing.T) { allocationDeterminesTier(t) }
+
+// TestPerfAllocationDeterminesTier is the machine-speed half: each delivery within 120 ms of its tier's
+// delay. Local only (SA_PERF=1, `make perf`).
+func TestPerfAllocationDeterminesTier(t *testing.T) {
+	perfOnly(t)
+	if late := allocationDeterminesTier(t); late > perfSlack {
+		t.Errorf("delivered %s after the scheduled delay, budget %s", late, perfSlack)
+	}
+}
+
+// perfSlack is how far past its scheduled release a delivery may land on a developer machine.
+const perfSlack = 120 * time.Millisecond
+
+// tierSlack is the correctness bound on the same: far below the next tier's delay, far above CI jitter.
+const tierSlack = time.Second
+
+// allocationDeterminesTier checks the tiers follow allocated power (A late, B first, neither early) and
+// returns the worst lateness past the scheduled delay.
+func allocationDeterminesTier(t *testing.T) time.Duration {
+	t.Helper()
 	r := startRelay(t, "")
 	a := registerProvider(t, r, 120, defaultRules)
 	b := registerProvider(t, r, 120, defaultRules)
@@ -177,7 +213,7 @@ func TestAllocationDeterminesTier(t *testing.T) {
 	t0 := time.Now()
 	pub.mustPublish(evA)
 	pub.mustPublish(evB)
-	if !cl.waitFor(evA.ID, 6*time.Second) || !cl.waitFor(evB.ID, 6*time.Second) {
+	if !cl.waitFor(evA.ID, harnessWait) || !cl.waitFor(evB.ID, harnessWait) {
 		t.Fatal("follower did not receive both signals")
 	}
 	atA, _ := cl.firstArrival(evA.ID)
@@ -186,16 +222,36 @@ func TestAllocationDeterminesTier(t *testing.T) {
 	wantA, wantB := scaledDelay("0.5", 120), scaledDelay("0", 120)
 	t.Logf("with A (5%% = 50k SA): %.0f ms (want %.0f); with B (95%% = 950k SA): %.0f ms (want %.0f); a 1M balance alone would be 0 ms",
 		ms(atA.Sub(t0)), ms(wantA), ms(atB.Sub(t0)), ms(wantB))
+	var worst time.Duration
 	for name, c := range map[string][3]time.Duration{"A": {atA.Sub(t0), wantA}, "B": {atB.Sub(t0), wantB}} {
-		if c[0] < c[1]-2*time.Millisecond || c[0] > c[1]+120*time.Millisecond {
+		if c[0] < c[1]-2*time.Millisecond || c[0] > c[1]+tierSlack {
 			t.Errorf("provider %s: delivered after %s, want about %s", name, c[0], c[1])
 		}
+		worst = max(worst, c[0]-c[1])
 	}
+	if !atB.Before(atA) {
+		t.Errorf("with B (95%%) the follower must be served before A (5%%): B at %s, A at %s", atB.Sub(t0), atA.Sub(t0))
+	}
+	return worst
 }
 
 // TestTwoProvidersOwnRules: SEP-3.25. Two providers with different rule sets and timeframes; each
 // follower's delay with each provider follows that provider's rules.
-func TestTwoProvidersOwnRules(t *testing.T) {
+func TestTwoProvidersOwnRules(t *testing.T) { twoProvidersOwnRules(t) }
+
+// TestPerfTwoProvidersOwnRules is the machine-speed half: each delivery within 120 ms of its rule's delay.
+// Local only (SA_PERF=1, `make perf`).
+func TestPerfTwoProvidersOwnRules(t *testing.T) {
+	perfOnly(t)
+	if late := twoProvidersOwnRules(t); late > perfSlack {
+		t.Errorf("delivered %s after the scheduled delay, budget %s", late, perfSlack)
+	}
+}
+
+// twoProvidersOwnRules checks each delay follows that provider's rules (never early, tier order kept) and
+// returns the worst lateness past the scheduled delay.
+func twoProvidersOwnRules(t *testing.T) time.Duration {
+	t.Helper()
 	r := startRelay(t, "")
 	x := registerProvider(t, r, 120, []tierSpec{{"500", "0"}, {"0", "1"}})   // top at 500 SA: 0; else 1x
 	y := registerProvider(t, r, 180, []tierSpec{{"500", "0.5"}, {"0", "3"}}) // top at 500 SA: 0.5x; else 3x
@@ -225,17 +281,20 @@ func TestTwoProvidersOwnRules(t *testing.T) {
 		{"f2 with X", c2, evX.ID, scaledDelay("1", 120)},
 		{"f2 with Y", c2, evY.ID, scaledDelay("0.5", 180)},
 	}
+	var worst time.Duration
 	for _, w := range want {
-		if !w.c.waitFor(w.id, 8*time.Second) {
+		if !w.c.waitFor(w.id, harnessWait) {
 			t.Fatalf("%s: never delivered", w.name)
 		}
 		at, _ := w.c.firstArrival(w.id)
 		got := at.Sub(t0)
 		t.Logf("%-10s delivered after %7.1f ms, rules say %7.1f ms", w.name, ms(got), ms(w.d))
-		if got < w.d-2*time.Millisecond || got > w.d+120*time.Millisecond {
+		if got < w.d-2*time.Millisecond || got > w.d+tierSlack {
 			t.Errorf("%s: %s, want about %s", w.name, got, w.d)
 		}
+		worst = max(worst, got-w.d)
 	}
+	return worst
 }
 
 // TestNoEarlyLeaks: SEP-3.38. Every read route a lower tier has, polled every 20 ms until its release time.
@@ -329,6 +388,7 @@ func TestNoEarlyLeaks(t *testing.T) {
 				results[f.name+" / "+name] = tl
 				total += tl.probes
 			}
+			f.cl.waitFor(ev.ID, harnessWait) // the live copy may trail the release on a loaded runner
 			if at, ok := f.cl.firstArrival(ev.ID); !ok {
 				t.Errorf("%s live subscription never got the signal", f.name)
 			} else if at.Before(release) {
