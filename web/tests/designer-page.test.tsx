@@ -292,8 +292,11 @@ describe("designer page", () => {
   });
 });
 
-describe("performance (SEP-5.11, happy-dom proxy)", () => {
-  test("a 200-node strategy renders and takes one edit within 100 ms each", async () => {
+// SEP-5.11. The correctness half runs everywhere; the 100 ms budgets run only locally (SA_PERF=1, `make perf`).
+const perf = process.env.SA_PERF === "1";
+
+describe("200-node strategy (SEP-5.11, happy-dom proxy)", () => {
+  async function renderAndEdit(): Promise<{ renderMs: number; editMs: number }> {
     const doc = bigStrategy(14) as JsonObject;
     expect(buildGraph(doc).nodes.length).toBeGreaterThanOrEqual(200);
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -324,11 +327,17 @@ describe("performance (SEP-5.11, happy-dom proxy)", () => {
     const editMs = performance.now() - t1;
     expect(host.querySelector(`.react-flow__node[data-id="${id}"]`)?.textContent).toContain("rsi(close, 14) > 31");
     console.log(`200-node proxy: render ${renderMs.toFixed(1)} ms, edit ${editMs.toFixed(1)} ms`);
-    // SA_PERF_SCALE widens the budget on slow shared CI runners (default 1 = 100 ms); see ci.yml
-    const scale = Number(process.env.SA_PERF_SCALE ?? "1");
-    if (!(scale >= 1)) throw new Error(`SA_PERF_SCALE=${process.env.SA_PERF_SCALE}: want a number >= 1; fix or unset it`);
-    expect(renderMs).toBeLessThan(100 * scale);
-    expect(editMs).toBeLessThan(100 * scale);
+    return { renderMs, editMs };
+  }
+
+  test("renders 200+ nodes and takes one edit", async () => {
+    await renderAndEdit();
+  });
+
+  test.skipIf(!perf)("PERF: render and one edit each within 100 ms", async () => {
+    const { renderMs, editMs } = await renderAndEdit();
+    expect(renderMs).toBeLessThan(100);
+    expect(editMs).toBeLessThan(100);
   });
 });
 

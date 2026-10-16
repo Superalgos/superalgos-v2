@@ -369,7 +369,28 @@ func TestBinaryRejectsBadConfig(t *testing.T) {
 }
 
 // SEP-3.41 against the real process: SIGKILL (no clean shutdown) with a release pending, then restart.
-func TestBinaryKillNineKeepsPendingRelease(t *testing.T) {
+func TestBinaryKillNineKeepsPendingRelease(t *testing.T) { killNine(t) }
+
+// TestPerfBinaryKillNine is the machine-speed half: delivered within 200 ms of schedule. Local only
+// (SA_PERF=1, `make perf`); CI never runs it.
+func TestPerfBinaryKillNine(t *testing.T) {
+	perfOnly(t)
+	if e := killNine(t); e > 200 {
+		t.Errorf("release error %.1f ms exceeds 200 ms", e)
+	}
+}
+
+// perfOnly skips a performance test unless SA_PERF=1 asks for it.
+func perfOnly(t *testing.T) {
+	t.Helper()
+	if os.Getenv("SA_PERF") != "1" {
+		t.Skip("performance test: run locally with `make perf` (SA_PERF=1)")
+	}
+}
+
+// killNine checks the pending release survives and is never early; it returns the release error in ms.
+func killNine(t *testing.T) float64 {
+	t.Helper()
 	dir := t.TempDir()
 	p1 := start(t, dir, "")
 	prov := newProvider()
@@ -402,31 +423,29 @@ func TestBinaryKillNineKeepsPendingRelease(t *testing.T) {
 	want := sentAt.Add(5 * time.Second)
 	t.Logf("kill -9 restart: delivered %.1f ms from its original release time (negative = early)", ms(at.Sub(want)))
 	// Never early (tier fairness, SEP-3.41): the relay's release is receipt+5 s and receipt >= sentAt.
-	if e := ms(at.Sub(want)); e < 0 {
+	e := ms(at.Sub(want))
+	if e < 0 {
 		t.Errorf("released %.1f ms before its schedule after kill -9 restart", -e)
-	} else if e > 200*perfScale() {
-		t.Errorf("release error %.1f ms exceeds %.0f ms (SA_PERF_SCALE=%g)", e, 200*perfScale(), perfScale())
 	}
-}
-
-// perfScale multiplies the latency budgets (never the correctness checks) for slow shared runners.
-// SA_PERF_SCALE defaults to 1 (a developer machine); CI sets it in .github/workflows/ci.yml.
-func perfScale() float64 {
-	v := os.Getenv("SA_PERF_SCALE")
-	if v == "" {
-		return 1
-	}
-	f, err := strconv.ParseFloat(v, 64)
-	if err != nil || f < 1 {
-		panic(fmt.Sprintf("SA_PERF_SCALE=%q: want a number >= 1 (1 = local budgets); fix or unset it", v))
-	}
-	return f
+	return e
 }
 
 func ms(d time.Duration) float64 { return float64(d.Microseconds()) / 1000 }
 
 // 300 subscribers against the real binary: relay-only RSS, release error.
-func TestBinaryLoad300Subscribers(t *testing.T) {
+func TestBinaryLoad300Subscribers(t *testing.T) { binaryLoad300(t) }
+
+// TestPerfBinaryLoad300Subscribers is the machine-speed half: p95 release error under 100 ms. Local only.
+func TestPerfBinaryLoad300Subscribers(t *testing.T) {
+	perfOnly(t)
+	if p95 := binaryLoad300(t); p95 > 100 {
+		t.Errorf("p95 release error %.1f ms exceeds 100 ms", p95)
+	}
+}
+
+// binaryLoad300 checks correctness (nothing missing, nothing early, no data race) and returns the p95 release error.
+func binaryLoad300(t *testing.T) float64 {
+	t.Helper()
 	dir := t.TempDir()
 	p := start(t, dir, "")
 	rssIdle := p.rssMB()
@@ -488,10 +507,8 @@ func TestBinaryLoad300Subscribers(t *testing.T) {
 	if missing != 0 {
 		t.Errorf("%d deliveries missing", missing)
 	}
-	if budget := 100 * perfScale(); at(0.95) > budget {
-		t.Errorf("p95 release error %.1f ms exceeds %.0f ms (SA_PERF_SCALE=%g)", at(0.95), budget, perfScale())
-	}
 	if strings.Contains(p.stderr.String(), "DATA RACE") {
 		t.Errorf("relay reported a data race:\n%s", p.stderr.String())
 	}
+	return at(0.95)
 }

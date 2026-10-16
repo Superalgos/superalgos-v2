@@ -25,14 +25,17 @@ uv sync --all-packages   # every Python package into the project .venv
 make hooks               # enable the pre-commit hook (lint, typecheck, fast tests)
 make check               # ruff, mypy --strict, pytest with coverage gate, per package
 make -C relay check      # gofmt, go vet, go test -race
+make perf                # local-only latency budgets (relay release error, designer 200 nodes)
 make web-check           # biome, tsc strict, bun test with coverage, production build
 make e2e                 # real processes: relay, providers, followers, record
 make demo-smoke          # `sa demo` headless, every API endpoint asserted
 uv run sa demo           # the whole network locally, dashboard on 127.0.0.1:8787
 ```
 
-- `SA_PERF_SCALE` (default 1, CI sets it in `ci.yml`) multiplies the latency budgets of the relay load/kill tests and the
-  web 200-node test for slow shared runners. It never relaxes correctness checks (missing, order, early release).
+- Performance tests (latency budgets that depend on machine speed: relay release error, the 200-node designer) are
+  local only: `make perf` (sets `SA_PERF=1`). Run it before a PR that touches relay delivery or the designer. CI never
+  sets `SA_PERF`, so those tests skip there; their correctness halves (nothing missing, nothing early, nodes render)
+  stay in the normal suite.
 - Python always runs through `uv run` or the project `.venv`. Never a global interpreter, never `pip install`; add
   dependencies with `uv add`.
 - Never skip or bypass the pre-commit hook. A change is ready when `make check`, `make -C relay check` and

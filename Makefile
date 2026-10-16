@@ -4,7 +4,7 @@ PKGS := $(notdir $(wildcard packages/*) $(wildcard apps/*))
 DIRS := $(wildcard packages/*) $(wildcard apps/*)
 PYTHON_DIRS := $(foreach d,$(DIRS),$(if $(wildcard $(d)/pyproject.toml),$(d)))
 
-.PHONY: sync lint typecheck test test-fast check hooks e2e e2e-online relay demo demo-smoke web-check
+.PHONY: sync lint typecheck test test-fast check hooks e2e e2e-online relay demo demo-smoke web-check perf
 
 sync:
 	$(UV) sync --all-packages
@@ -64,5 +64,10 @@ demo-smoke:
 	$(UV) run python scripts/demo_smoke.py
 
 # Dashboard checks (biome, tsc strict, bun tests with coverage, production build).
+# Local-only performance tests (machine-speed budgets); never run in CI. See AGENTS.md.
+perf:
+	cd relay && SA_PERF=1 go test -count=1 -v -run 'TestPerf' ./...
+	cd web && bun install --frozen-lockfile && SA_PERF=1 bun test tests/designer-page.test.tsx
+
 web-check:
 	cd web && bun install --frozen-lockfile && bun run lint && bun run typecheck && bun test --coverage && bun run build
