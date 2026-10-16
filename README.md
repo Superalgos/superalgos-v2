@@ -27,6 +27,16 @@ This repository is a proposal to the Superalgos community. The direction is for 
 | **Visual strategy design, data mining** | A typed strategy schema and expression language (no `eval`), NautilusTrader's indicators, backtests, and a chart that draws exactly what the engine computes. |
 | **Run it yourself** | One command starts a whole local network. Containers run each role separately. |
 
+## How the work is defined: SEPs
+
+Every feature is a **Superalgos Enhancement Proposal** in [`seps/`](seps/README.md), in the tradition of BIPs, EIPs
+and NIPs. A SEP states the motivation and design, then lists numbered criteria (`SEP-3.15`), each with the test or
+check that proves it. A criterion is ticked only when that check passes, so the SEP index shows what works today and
+what is still open. Code and tests cite the criteria they implement.
+
+To propose a change, open a pull request that adds or edits a SEP. Agents and humans follow the same rules, in
+[`AGENTS.md`](AGENTS.md).
+
 ## Try it
 
 You need [uv](https://docs.astral.sh/uv/), Go 1.27 or newer and [bun](https://bun.sh). The relay and the dashboard are
