@@ -1,15 +1,24 @@
 # Superalgos v2
 
-Superalgos v2 is a new take on the original Superalgos requirements, rebuilt on a current tech base. It starts with the
-part of the plan that gives the SA token its purpose: trading signals you can check. A provider runs a strategy and
+Superalgos v2 is a new take on the original Superalgos requirements, rebuilt on a current tech base: an open-source,
+self-hosted trading platform owned by its community. You design a strategy, backtest it on real market data, paper
+trade it, and chart exactly what the engine computes. Governance stays with SA token holders.
+
+The first network feature is the part of the plan that gives the SA token its purpose: trading signals you can check. A provider runs a strategy and
 publishes each order as a signed, time-stamped message. Followers copy those signals on their own account, at a delay
 that depends on how much SA token power they have given that provider. Anyone can recompute a provider's track record
 from the signed history, without trusting a server or the provider's word.
 
-v2 does not replace v1. It gathers v1's features and recreates the ones that still make sense, on
-[NautilusTrader](https://nautilustrader.io) for backtesting and execution, Nostr for transport and typed code
+v2 does not replace v1. It gathers v1's features and recreates the ones that still make sense, with typed code
 throughout. It is an open-source, self-hosted project: nothing here holds user funds or exchange keys, and nobody runs
 a shared service on your behalf.
+
+**Built on:**
+
+- [NautilusTrader](https://nautilustrader.io): the backtesting and execution engine. Strategies, indicators, paper and
+  live trading run on it, so the same code path produces a backtest and a live order.
+- [Nostr](https://nostr.com): the transport for signals, rule sets, allocations and votes. Every message is a signed
+  event, and `sarelay` is a Nostr relay that adds tier timing and access by token power.
 
 This repository is a proposal to the Superalgos community. The direction is for SA holders to decide.
 
