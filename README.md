@@ -6,10 +6,16 @@ publishes each order as a signed, time-stamped message. Followers copy those sig
 that depends on how much SA token power they have given that provider. Anyone can recompute a provider's track record
 from the signed history, without trusting a server or the provider's word.
 
-v2 does not replace v1. It gathers v1's features and recreates the ones that still make sense, on
-[NautilusTrader](https://nautilustrader.io) for backtesting and execution, Nostr for transport and typed code
+v2 does not replace v1. It gathers v1's features and recreates the ones that still make sense, with typed code
 throughout. It is an open-source, self-hosted project: nothing here holds user funds or exchange keys, and nobody runs
 a shared service on your behalf.
+
+**Built on:**
+
+- [NautilusTrader](https://nautilustrader.io): the backtesting and execution engine. Strategies, indicators, paper and
+  live trading run on it, so the same code path produces a backtest and a live order.
+- [Nostr](https://nostr.com): the transport for signals, rule sets, allocations and votes. Every message is a signed
+  event, and `sarelay` is a Nostr relay that adds tier timing and access by token power.
 
 This repository is a proposal to the Superalgos community. The direction is for SA holders to decide.
 
