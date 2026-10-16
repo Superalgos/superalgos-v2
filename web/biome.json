@@ -1,0 +1,9 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "files": {
+    "includes": ["src/**", "mock/**", "*.ts", "*.json", "index.html", "!mock/contract.json"]
+  },
+  "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
+  "linter": { "enabled": true, "rules": { "preset": "none" } },
+  "javascript": { "formatter": { "quoteStyle": "double" } }
+}

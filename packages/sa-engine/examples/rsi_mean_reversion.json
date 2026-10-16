@@ -1,0 +1,59 @@
+{
+  "schema_version": 2,
+  "name": "rsi-mean-reversion",
+  "description": "Mean reversion on 1h bars: buy when RSI(14) < 30 and price is under the lower Bollinger band(20, 2); exit when RSI > 55, after 48 bars, or on a 4% stop.",
+  "timeframe": "1h",
+  "stages": {
+    "trigger": {
+      "on": {
+        "any": [
+          {
+            "name": "always",
+            "all": [
+              "true"
+            ]
+          }
+        ]
+      }
+    },
+    "open": {
+      "when": {
+        "any": [
+          {
+            "name": "oversold below the band",
+            "all": [
+              "rsi(close, 14) < 30",
+              "close < bb_lower(close, 20, 2)"
+            ]
+          }
+        ]
+      },
+      "orders": [
+        {
+          "id": "entry",
+          "type": "market",
+          "size_fraction": 0.95,
+          "stop_loss_pct": 4
+        }
+      ]
+    },
+    "close": {
+      "when": {
+        "any": [
+          {
+            "name": "rsi recovered",
+            "all": [
+              "rsi(close, 14) > 55"
+            ]
+          },
+          {
+            "name": "time stop",
+            "all": [
+              "bars_in_position > 48"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

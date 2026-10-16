@@ -1,0 +1,52 @@
+{
+  "schema_version": 2,
+  "name": "ema-crossover",
+  "description": "Trend following: buy when the 20 EMA crosses above the 50 EMA on 4h bars, sell on the opposite cross; 5% protective stop.",
+  "timeframe": "4h",
+  "stages": {
+    "trigger": {
+      "on": {
+        "any": [
+          {
+            "name": "always",
+            "all": [
+              "true"
+            ]
+          }
+        ]
+      }
+    },
+    "open": {
+      "when": {
+        "any": [
+          {
+            "name": "golden cross",
+            "all": [
+              "cross_above(ema(close, 20), ema(close, 50))"
+            ]
+          }
+        ]
+      },
+      "orders": [
+        {
+          "id": "entry",
+          "type": "market",
+          "size_fraction": 0.95,
+          "stop_loss_pct": 5
+        }
+      ]
+    },
+    "close": {
+      "when": {
+        "any": [
+          {
+            "name": "death cross",
+            "all": [
+              "cross_below(ema(close, 20), ema(close, 50))"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

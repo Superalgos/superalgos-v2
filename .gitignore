@@ -1,0 +1,36 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Local data, keys and secrets
+/data/
+.sa-data/
+*.keystore
+*.key.json
+.env
+.env.*
+
+# Node / Go (other packages)
+node_modules/
+web/dist/
+relay/bin/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+.sa-demo/
+
+# agent worktrees (Claude Code)
+.claude/worktrees/

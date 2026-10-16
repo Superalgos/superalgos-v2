@@ -1,0 +1,23 @@
+[project]
+name = "sa-api"
+version = "0.1.0"
+description = "Superalgos v2 read-only dashboard API: providers, track records, signals, backtests, power, governance, network status"
+requires-python = ">=3.12,<3.14"
+license = "Apache-2.0"
+dependencies = [
+    "sa-core",
+    "sa-engine",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+]
+
+[project.scripts]
+sa-api = "sa_api.main:run"
+
+[tool.uv.sources]
+sa-core = { workspace = true }
+sa-engine = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.12.23,<0.14.0"]
+build-backend = "uv_build"

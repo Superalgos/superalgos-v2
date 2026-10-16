@@ -1,0 +1,518 @@
+{
+  "$defs": {
+    "CloseStage": {
+      "additionalProperties": false,
+      "properties": {
+        "when": {
+          "$ref": "#/$defs/Event",
+          "description": "cancels working orders and sells the whole position with a market order"
+        }
+      },
+      "required": [
+        "when"
+      ],
+      "title": "CloseStage",
+      "type": "object"
+    },
+    "Event": {
+      "additionalProperties": false,
+      "properties": {
+        "any": {
+          "description": "OR: the event fires when any situation passes; the first passing situation (array order) wins",
+          "items": {
+            "$ref": "#/$defs/Situation"
+          },
+          "maxItems": 20,
+          "minItems": 1,
+          "title": "Any",
+          "type": "array"
+        }
+      },
+      "required": [
+        "any"
+      ],
+      "title": "Event",
+      "type": "object"
+    },
+    "Goto": {
+      "additionalProperties": false,
+      "properties": {
+        "to": {
+          "description": "id of another phase of the same list",
+          "pattern": "^[a-z][a-z0-9_]{0,31}$",
+          "title": "To",
+          "type": "string"
+        },
+        "when": {
+          "$ref": "#/$defs/Event"
+        }
+      },
+      "required": [
+        "when",
+        "to"
+      ],
+      "title": "Goto",
+      "type": "object"
+    },
+    "Manage": {
+      "additionalProperties": false,
+      "properties": {
+        "rules": {
+          "items": {
+            "$ref": "#/$defs/ManageRule"
+          },
+          "maxItems": 20,
+          "title": "Rules",
+          "type": "array"
+        },
+        "stop": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PhasedLevel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "stop loss: the position is sold at market once a bar's low reaches the level"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PhasedLevel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "take profit: sold at market once a bar's high reaches the level (the stop is tested first)"
+        }
+      },
+      "title": "Manage",
+      "type": "object"
+    },
+    "ManageRule": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "description": "cancel_pending: close the open stage (cancel unfilled entries, place no more); reduce: sell size_fraction of the position",
+          "enum": [
+            "cancel_pending",
+            "reduce"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]{0,31}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "once": {
+          "default": true,
+          "description": "fire at most once per entry cycle",
+          "title": "Once",
+          "type": "boolean"
+        },
+        "size_fraction": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "maximum": 1,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Size Fraction"
+        },
+        "when": {
+          "$ref": "#/$defs/Event"
+        }
+      },
+      "required": [
+        "id",
+        "when",
+        "action"
+      ],
+      "title": "ManageRule",
+      "type": "object"
+    },
+    "OpenStage": {
+      "additionalProperties": false,
+      "properties": {
+        "orders": {
+          "items": {
+            "$ref": "#/$defs/OrderSpec"
+          },
+          "maxItems": 100,
+          "minItems": 1,
+          "title": "Orders",
+          "type": "array"
+        },
+        "when": {
+          "$ref": "#/$defs/Event",
+          "description": "take-position event: an entry cycle starts when it fires while active, flat, with nothing working"
+        }
+      },
+      "required": [
+        "when",
+        "orders"
+      ],
+      "title": "OpenStage",
+      "type": "object"
+    },
+    "OrderSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "cancel": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Event"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "cancels this order while it is working (limit/stop only)"
+        },
+        "create": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Event"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "checked on every bar of the cycle while the order is not placed; when it fires the order is placed (it fills from the next bar). Absent: place it as soon as the cycle starts"
+        },
+        "id": {
+          "description": "unique within the strategy",
+          "pattern": "^[a-z][a-z0-9_]{0,31}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "offset_pct": {
+          "default": 0.0,
+          "description": "limit/stop only: signed percent from the bar close at placement (limit buys: <= 0 = below)",
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Offset Pct",
+          "type": "number"
+        },
+        "rate": {
+          "anyOf": [
+            {
+              "description": "Numeric expression, e.g. 'max(coalesce(stop_price, 0), close - 2 * atr(14))'. Arithmetic + - * /, parentheses, numbers. Functions: ema sma rsi bb_upper bb_middle bb_lower atr donchian_upper donchian_lower donchian_mid prev cross_above cross_below abs min max coalesce. Names: open high low close volume in_position is_long is_short position_size entry_price unrealized_pnl_pct bars_in_position stop_price target_price. Indicators and prices accept a last argument, a closed higher timeframe: ema(close, 20, \"4h\"), close(\"1d\"). Evaluated on bar close; no value yet (not enough history, division by zero) means 'keep the previous value'.",
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string",
+              "x-dsl": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "limit/stop only, instead of offset_pct: the order price as a formula, evaluated when the order is placed. A limit is capped at the bar close, a stop floored at it; <= 0 or no value means 'not this bar'",
+          "title": "Rate"
+        },
+        "rearm": {
+          "default": false,
+          "description": "after the order fills (or is cancelled) it may be placed again by its create event while the cycle lasts (v1 spawnMultipleOrders): a filled ladder level is re-placed",
+          "title": "Rearm",
+          "type": "boolean"
+        },
+        "side": {
+          "const": "buy",
+          "default": "buy",
+          "description": "spot, long-only: entries are buys",
+          "title": "Side",
+          "type": "string"
+        },
+        "size": {
+          "anyOf": [
+            {
+              "description": "Numeric expression, e.g. 'max(coalesce(stop_price, 0), close - 2 * atr(14))'. Arithmetic + - * /, parentheses, numbers. Functions: ema sma rsi bb_upper bb_middle bb_lower atr donchian_upper donchian_lower donchian_mid prev cross_above cross_below abs min max coalesce. Names: open high low close volume in_position is_long is_short position_size entry_price unrealized_pnl_pct bars_in_position stop_price target_price. Indicators and prices accept a last argument, a closed higher timeframe: ema(close, 20, \"4h\"), close(\"1d\"). Evaluated on bar close; no value yet (not enough history, division by zero) means 'keep the previous value'.",
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string",
+              "x-dsl": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "instead of size_fraction: a formula giving the fraction of equity, evaluated when the order is placed. Clamped to what is left of 100% of equity; <= 0 or no value means 'place nothing this bar'",
+          "title": "Size"
+        },
+        "size_fraction": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0.0001,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "fixed fraction of account equity committed by this order",
+          "title": "Size Fraction"
+        },
+        "stop_loss_pct": {
+          "anyOf": [
+            {
+              "exclusiveMaximum": 100,
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "after this order fills, stop-sell at fill price x (1 - pct/100)",
+          "title": "Stop Loss Pct"
+        },
+        "take_profit_pct": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "maximum": 1000,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "after this order fills, sell it at fill price x (1 + pct/100)",
+          "title": "Take Profit Pct"
+        },
+        "type": {
+          "default": "market",
+          "enum": [
+            "market",
+            "limit",
+            "stop"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "OrderSpec",
+      "type": "object"
+    },
+    "Phase": {
+      "additionalProperties": false,
+      "properties": {
+        "goto": {
+          "description": "move-to-phase events, in order; the first that fires wins",
+          "items": {
+            "$ref": "#/$defs/Goto"
+          },
+          "maxItems": 20,
+          "title": "Goto",
+          "type": "array"
+        },
+        "id": {
+          "description": "unique within its stop or target",
+          "pattern": "^[a-z][a-z0-9_]{0,31}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "level": {
+          "description": "the stop (or target) price while this phase is current",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Level",
+          "type": "string",
+          "x-dsl": "number"
+        },
+        "next": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Event"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "moves to the next phase of the list (checked first)"
+        }
+      },
+      "required": [
+        "id",
+        "level"
+      ],
+      "title": "Phase",
+      "type": "object"
+    },
+    "PhasedLevel": {
+      "additionalProperties": false,
+      "properties": {
+        "phases": {
+          "description": "ordered; phase 1 is current when the position opens",
+          "items": {
+            "$ref": "#/$defs/Phase"
+          },
+          "maxItems": 20,
+          "minItems": 1,
+          "title": "Phases",
+          "type": "array"
+        }
+      },
+      "required": [
+        "phases"
+      ],
+      "title": "PhasedLevel",
+      "type": "object"
+    },
+    "Situation": {
+      "additionalProperties": false,
+      "properties": {
+        "all": {
+          "description": "AND: every condition must be true for the situation to pass",
+          "items": {
+            "description": "Boolean expression, e.g. 'cross_above(ema(close, 12), ema(close, 26)) and rsi(close, 14) < 70'. Functions: ema sma rsi bb_upper bb_middle bb_lower atr donchian_upper donchian_lower donchian_mid prev cross_above cross_below abs min max coalesce. Names: open high low close volume in_position is_long is_short position_size entry_price unrealized_pnl_pct bars_in_position stop_price target_price. Indicators and prices accept a last argument, a closed higher timeframe: ema(close, 20, \"4h\"), close(\"1d\").",
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string",
+            "x-dsl": "boolean"
+          },
+          "maxItems": 20,
+          "minItems": 1,
+          "title": "All",
+          "type": "array"
+        },
+        "name": {
+          "default": "",
+          "description": "audit label recorded when this situation fires",
+          "maxLength": 80,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "all"
+      ],
+      "title": "Situation",
+      "type": "object"
+    },
+    "Stages": {
+      "additionalProperties": false,
+      "properties": {
+        "close": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CloseStage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "manage": {
+          "$ref": "#/$defs/Manage"
+        },
+        "open": {
+          "$ref": "#/$defs/OpenStage"
+        },
+        "trigger": {
+          "$ref": "#/$defs/Trigger"
+        }
+      },
+      "required": [
+        "open"
+      ],
+      "title": "Stages",
+      "type": "object"
+    },
+    "Trigger": {
+      "additionalProperties": false,
+      "properties": {
+        "off": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Event"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "deactivates (no new entries; working entries cancelled; a held position stays)"
+        },
+        "on": {
+          "$ref": "#/$defs/Event",
+          "description": "activates the strategy when it fires"
+        }
+      },
+      "title": "Trigger",
+      "type": "object"
+    }
+  },
+  "$id": "https://superalgos.org/schemas/strategy/v2.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "description": {
+      "default": "",
+      "maxLength": 2000,
+      "title": "Description",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 2,
+      "default": 2,
+      "description": "2; documents of schema 1 must be migrated",
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stages": {
+      "$ref": "#/$defs/Stages"
+    },
+    "timeframe": {
+      "enum": [
+        "1m",
+        "5m",
+        "15m",
+        "30m",
+        "1h",
+        "2h",
+        "4h",
+        "1d"
+      ],
+      "title": "Timeframe",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "timeframe",
+    "stages"
+  ],
+  "title": "Superalgos v2 strategy",
+  "type": "object"
+}

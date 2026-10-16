@@ -1,0 +1,112 @@
+{
+  "schema_version": 2,
+  "name": "trend-phases",
+  "description": "Trend entry with a phased stop and target: enter when the 1h 20 EMA crosses above the 50 EMA while the 4h close is above its 50 EMA (higher timeframe, closed bars only). The stop starts 2 ATR under the entry, moves to break-even after a 1.5 ATR gain, then trails 2.5 ATR under the close and never loosens. The target sits 6 ATR above the entry until the trail is on, then widens. The stop is tested before the target on the same bar.",
+  "timeframe": "1h",
+  "stages": {
+    "trigger": {
+      "on": {
+        "any": [
+          {
+            "name": "always",
+            "all": [
+              "true"
+            ]
+          }
+        ]
+      }
+    },
+    "open": {
+      "when": {
+        "any": [
+          {
+            "name": "trend up",
+            "all": [
+              "cross_above(ema(close, 20), ema(close, 50))",
+              "close > ema(close, 50, \"4h\")"
+            ]
+          }
+        ]
+      },
+      "orders": [
+        {
+          "id": "entry",
+          "type": "market",
+          "size_fraction": 0.95
+        }
+      ]
+    },
+    "manage": {
+      "stop": {
+        "phases": [
+          {
+            "id": "initial",
+            "level": "entry_price - 2 * atr(14)",
+            "next": {
+              "any": [
+                {
+                  "name": "1.5 ATR in profit",
+                  "all": [
+                    "close > entry_price + 1.5 * atr(14)"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "id": "break_even",
+            "level": "entry_price",
+            "next": {
+              "any": [
+                {
+                  "name": "3 ATR in profit",
+                  "all": [
+                    "close > entry_price + 3 * atr(14)"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "id": "trail",
+            "level": "max(coalesce(stop_price, 0), close - 2.5 * atr(14))"
+          }
+        ]
+      },
+      "target": {
+        "phases": [
+          {
+            "id": "first",
+            "level": "entry_price + 6 * atr(14)",
+            "next": {
+              "any": [
+                {
+                  "name": "trail is on",
+                  "all": [
+                    "stop_price > entry_price"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "id": "extended",
+            "level": "entry_price + 10 * atr(14)"
+          }
+        ]
+      }
+    },
+    "close": {
+      "when": {
+        "any": [
+          {
+            "name": "trend over",
+            "all": [
+              "cross_below(ema(close, 20), ema(close, 50))"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

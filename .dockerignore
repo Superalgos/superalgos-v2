@@ -1,0 +1,13 @@
+.git
+.venv
+.sa-data
+.sa-demo
+.mypy_cache
+.ruff_cache
+.pytest_cache
+.hypothesis
+.coverage
+**/__pycache__
+web/node_modules
+web/dist
+relay/bin

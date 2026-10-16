@@ -1,0 +1,43 @@
+# sarelay for the compose demo network. time_scale = 1/1440 matches `sa demo --speed 1440` (the setup service's default):
+# change both together. No allocation delay and no throttling, as in `sa demo`; balances are the shared fixture file.
+listen = "0.0.0.0:7781"
+storage_path = "/work/relay-data"
+allocation_delay = "0s"
+core_delay = "0s"
+max_anchor_latency = "0s"
+time_scale = 0.000694444444444
+
+[admin]
+listen = "127.0.0.1:7782"
+
+[log]
+format = "json"
+level = "info"
+
+[oracle]
+cache_ttl = "1s"
+max_lookups_per_sec = 100000
+lookup_burst = 100000
+
+# The demo network is a closed throwaway: every cap the relay enforces by default is set here, explicitly
+# and permissively. A public relay keeps the defaults (see relay/README.md "Resource limits").
+[limits]
+max_conns_per_ip = 100000        # every container reaches the relay from a docker-network address
+max_pending_per_provider = 100000
+max_pending_total = 1000000
+
+[policy]
+min_provider_power = 0           # fixture balances: registering a provider costs nothing in the demo
+min_proposer_power = 0
+provider_idle_expiry = "0s"
+
+[rate]
+zero_power_per_sec = 100000
+zero_power_burst = 100000
+powered_per_sec = 100000
+powered_burst = 100000
+
+[[chains]]
+id = "fixture"
+kind = "fixture"
+file = "/work/balances.json"

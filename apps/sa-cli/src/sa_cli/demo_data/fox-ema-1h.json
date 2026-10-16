@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "name": "fox-ema-1h",
+  "description": "Demo strategy (private provider): buy when EMA3 crosses above EMA9 on 1h bars, sell on the opposite cross; 1.5% protective stop. Not a trading idea.",
+  "timeframe": "1h",
+  "stages": {
+    "trigger": { "on": { "any": [{ "name": "always", "all": ["true"] }] } },
+    "open": {
+      "when": { "any": [{ "name": "fast over slow", "all": ["cross_above(ema(close, 3), ema(close, 9))"] }] },
+      "orders": [{ "id": "entry", "type": "market", "size_fraction": 0.4, "stop_loss_pct": 1.5 }]
+    },
+    "close": { "when": { "any": [{ "name": "fast under slow", "all": ["cross_below(ema(close, 3), ema(close, 9))"] }] } }
+  }
+}

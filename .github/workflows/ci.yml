@@ -1,0 +1,134 @@
+# Superalgos v2 CI (SEP-1.4). Every job below is a separate check so branch protection can require each one:
+#   lint, typecheck, test, relay, web  -> required on every PR
+#   e2e                                -> runs real processes (minutes, downloads one week of Binance candles); required
+#                                         once the repository has runners for it, otherwise advisory
+# There is no remote yet: this file is validated locally with actionlint. The red-check probe
+# (a PR with a lint error, a type error and a failing test, each answered by a red required check) waits on a remote.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_FROZEN: "1"          # the lockfile is the truth: a drifting uv.lock fails the job instead of being rewritten
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --all-packages
+      - name: ruff check and ruff format --check
+        run: make lint
+
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --all-packages
+      - name: mypy --strict on every package, scripts and tests/e2e
+        run: make typecheck
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --all-packages
+      - name: pytest over every Python package, coverage gate fail_under = 80 (pyproject.toml)
+        run: uv run pytest
+
+  relay:
+    name: relay
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: relay
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: relay/go.mod
+          cache-dependency-path: relay/go.sum
+      - name: gofmt, go vet, go test -race
+        run: make check
+
+  relay-image:
+    name: relay-image
+    runs-on: ubuntu-24.04-arm   # native arm64: the relay image targets arm64 hosts
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: build deploy/relay.Dockerfile for linux/arm64
+        run: docker buildx build --platform linux/arm64 -f deploy/relay.Dockerfile -t sarelay:ci --load .
+      - name: image is under 100 MB, contains no python, runs non-root
+        run: |
+          size=$(docker image inspect sarelay:ci --format '{{.Size}}')
+          echo "sarelay:ci is ${size} bytes"
+          if [ "$size" -ge 100000000 ]; then echo "relay image is ${size} bytes, limit is 100000000: drop what the image does not need"; exit 1; fi
+          found=$(docker run --rm --entrypoint sh sarelay:ci -c 'command -v python python3 pip; find / -xdev \( -iname "python*" -o -name "*.pyc" \) 2>/dev/null; true')
+          if [ -n "$found" ]; then echo "relay image contains python files: ${found}"; exit 1; fi
+          user=$(docker image inspect sarelay:ci --format '{{.Config.User}}')
+          if [ -z "$user" ] || [ "$user" = "root" ] || [ "$user" = "0" ]; then echo "relay image runs as '${user}', expected a non-root user"; exit 1; fi
+      - name: sarelay accepts the test relay config
+        run: >
+          docker run --rm
+          -v "$PWD/deploy/testrelay/sarelay.toml:/etc/sarelay/sarelay.toml:ro"
+          -v "$PWD/deploy/testrelay/balances:/etc/sarelay/balances:ro"
+          sarelay:ci -check -config /etc/sarelay/sarelay.toml
+
+  web:
+    name: web
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: biome, tsc --noEmit, bun test with coverage, production build
+        run: make web-check
+
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: relay/go.mod
+          cache-dependency-path: relay/go.sum
+      - uses: actions/cache@v4
+        with:
+          path: .sa-data
+          key: sa-data-${{ hashFiles('tests/e2e/e2e_scenario.py') }}
+      - run: uv sync --all-packages
+      - name: sarelay + provider + followers as real processes, one replayed week of BTCUSDT
+        run: make e2e

@@ -1,0 +1,134 @@
+{
+  "schema_version": 2,
+  "name": "grid-10-level",
+  "description": "Buy-grid: 10 limit buys from 0.5% to 5% below the reference close, each sold 0.6% above its own fill. The grid is re-armed when flat; a 12% drawdown from average entry flattens everything.",
+  "timeframe": "15m",
+  "stages": {
+    "trigger": {
+      "on": {
+        "any": [
+          {
+            "name": "always",
+            "all": [
+              "true"
+            ]
+          }
+        ]
+      }
+    },
+    "open": {
+      "when": {
+        "any": [
+          {
+            "name": "arm the grid",
+            "all": [
+              "true"
+            ]
+          }
+        ]
+      },
+      "orders": [
+        {
+          "id": "level_01",
+          "type": "limit",
+          "size_fraction": 0.09,
+          "offset_pct": -0.5,
+          "take_profit_pct": 0.6
+        },
+        {
+          "id": "level_02",
+          "type": "limit",
+          "size_fraction": 0.09,
+          "offset_pct": -1,
+          "take_profit_pct": 0.6
+        },
+        {
+          "id": "level_03",
+          "type": "limit",
+          "size_fraction": 0.09,
+          "offset_pct": -1.5,
+          "take_profit_pct": 0.6
+        },
+        {
+          "id": "level_04",
+          "type": "limit",
+          "size_fraction": 0.09,
+          "offset_pct": -2,
+          "take_profit_pct": 0.6
+        },
+        {
+          "id": "level_05",
+          "type": "limit",
+          "size_fraction": 0.09,
+          "offset_pct": -2.5,
+          "take_profit_pct": 0.6
+        },
+        {
+          "id": "level_06",
+          "type": "limit",
+          "size_fraction": 0.09,
+          "offset_pct": -3,
+          "take_profit_pct": 0.6
+        },
+        {
+          "id": "level_07",
+          "type": "limit",
+          "size_fraction": 0.09,
+          "offset_pct": -3.5,
+          "take_profit_pct": 0.6
+        },
+        {
+          "id": "level_08",
+          "type": "limit",
+          "size_fraction": 0.09,
+          "offset_pct": -4,
+          "take_profit_pct": 0.6
+        },
+        {
+          "id": "level_09",
+          "type": "limit",
+          "size_fraction": 0.09,
+          "offset_pct": -4.5,
+          "take_profit_pct": 0.6
+        },
+        {
+          "id": "level_10",
+          "type": "limit",
+          "size_fraction": 0.09,
+          "offset_pct": -5,
+          "take_profit_pct": 0.6
+        }
+      ]
+    },
+    "manage": {
+      "rules": [
+        {
+          "id": "stop_new",
+          "when": {
+            "any": [
+              {
+                "name": "losing",
+                "all": [
+                  "unrealized_pnl_pct < -6"
+                ]
+              }
+            ]
+          },
+          "action": "cancel_pending"
+        }
+      ]
+    },
+    "close": {
+      "when": {
+        "any": [
+          {
+            "name": "drawdown stop",
+            "all": [
+              "unrealized_pnl_pct < -12"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

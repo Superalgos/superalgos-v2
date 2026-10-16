@@ -1,0 +1,31 @@
+# Public test relay: sarelay only, behind the host's Kong TLS proxy (wss://relay.example.org).
+#
+#   docker compose -f deploy/testrelay/docker-compose.yml up -d --build
+#
+# Published on the host's loopback only; Kong on the host proxies to 127.0.0.1:7781. Override for a local run:
+#   SARELAY_PORT=17781 SARELAY_BALANCES_DIR=/some/dir docker compose -f deploy/testrelay/docker-compose.yml up -d --build
+# Paper trading only: fixture balances, demo identities, no real chain transaction or exchange order.
+name: sarelay-test
+
+services:
+  relay:
+    image: sarelay:test
+    build:
+      context: ../..
+      dockerfile: deploy/relay.Dockerfile
+    ports:
+      - "127.0.0.1:${SARELAY_PORT:-7781}:7781"
+    volumes:
+      - relay-data:/data
+      - ./sarelay.toml:/etc/sarelay/sarelay.toml:ro
+      - ${SARELAY_BALANCES_DIR:-./balances}:/etc/sarelay/balances:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--header", "Accept: application/nostr+json", "http://127.0.0.1:7781/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  relay-data:

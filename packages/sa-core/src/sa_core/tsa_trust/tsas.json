@@ -1,0 +1,126 @@
+{
+  "bundle_version": "2026-10-12",
+  "entries": [
+    {
+      "name": "freetsa",
+      "operator": "freetsa",
+      "root_file": "freetsa.pem",
+      "root_sha256": "a6379e7cecc05faa3cbf076013d745e327bbbaa38c0b9af22469d4701d18aabc",
+      "policies": [
+        "1.2.3.4.1"
+      ],
+      "root_source": "https://freetsa.org/files/cacert.pem (also in Mozilla/certifi: False; in macOS system roots: False)"
+    },
+    {
+      "name": "digicert",
+      "operator": "digicert",
+      "root_file": "digicert.pem",
+      "root_sha256": "552f7bdcf1a7af9e6ce672017f4f12abf77240c78e761ac203d1d9d20ac89988",
+      "policies": [
+        "2.16.840.1.114412.7.1"
+      ],
+      "root_source": "http://cacerts.digicert.com/DigiCertTrustedRootG4.crt (also in Mozilla/certifi: True; in macOS system roots: True)"
+    },
+    {
+      "name": "digicert-quovadis",
+      "operator": "digicert",
+      "root_file": "digicert-quovadis.pem",
+      "root_sha256": "8a866fd1b276b57e578e921c65828a2bed58e9f2f288054134b7f1f4bfc9cc74",
+      "policies": [
+        "1.3.6.1.4.1.8024.0.2000.6"
+      ],
+      "root_source": "http://trust.quovadisglobal.com/qvrca1g3.crt (also in Mozilla/certifi: True; in macOS system roots: True)"
+    },
+    {
+      "name": "sectigo",
+      "operator": "sectigo",
+      "root_file": "sectigo.pem",
+      "root_sha256": "4941b001b8a97e961b7817c9d9e960ec4b056bfc915a8c1aabf6ef6b3ac046a5",
+      "policies": [
+        "1.3.6.1.4.1.6449.2.1.1"
+      ],
+      "root_source": "http://crt.sectigo.com/SectigoPublicTimeStampingRootR46.p7c (also in Mozilla/certifi: False; in macOS system roots: True)"
+    },
+    {
+      "name": "sectigo-qualified",
+      "operator": "sectigo",
+      "root_file": "sectigo-qualified.pem",
+      "root_sha256": "f871f8976b4068d700d5f281084b4a29eaf4b8f35743330ba062fab46f58c2ed",
+      "policies": [
+        "0.4.0.2023.1.1"
+      ],
+      "root_source": "http://crt.sectigo.com/SectigoQualifiedTimeStampingRootR45.crt (also in Mozilla/certifi: False; in macOS system roots: False)"
+    },
+    {
+      "name": "globalsign",
+      "operator": "globalsign",
+      "root_file": "globalsign.pem",
+      "root_sha256": "2cabeafe37d06ca22aba7391c0033d25982952c453647349763a3ab5ad6ccf69",
+      "policies": [
+        "1.3.6.1.4.1.4146.2.3.2.2"
+      ],
+      "root_source": "http://secure.globalsign.com/cacert/root-r6.crt (also in Mozilla/certifi: True; in macOS system roots: True)"
+    },
+    {
+      "name": "apple",
+      "operator": "apple",
+      "root_file": "apple.pem",
+      "root_sha256": "b0b1730ecbc7ff4505142c49f1295e6eda6bcaed7e2c68c5be91b5a11001f024",
+      "policies": [
+        "1.2.3"
+      ],
+      "allow_sha1_signature": true,
+      "root_source": "https://www.apple.com/appleca/AppleIncRootCertificate.cer (also in Mozilla/certifi: False; in macOS system roots: True)"
+    },
+    {
+      "name": "swisssign",
+      "operator": "swisssign",
+      "root_file": "swisssign.pem",
+      "root_sha256": "b87f292a4d9feace2d669159eb26f56d85ec77c19e01098cd754e8abb310cde5",
+      "policies": [
+        "2.16.756.1.89.1.1.3.5"
+      ],
+      "root_source": "http://swisssign.net/cgi-bin/authority/download/C99B6176377D397796F4A1E97BCDEB2070F2E084 (also in Mozilla/certifi: False; in macOS system roots: False)"
+    },
+    {
+      "name": "certum",
+      "operator": "certum",
+      "root_file": "certum.pem",
+      "root_sha256": "5c58468d55f58e497e743982d2b50010b6d165374acf83a7d4a32db768c4408e",
+      "policies": [
+        "1.2.616.1.113527.2.5.1.11"
+      ],
+      "root_source": "http://repository.certum.pl/ctnca.cer (also in Mozilla/certifi: True; in macOS system roots: True)"
+    },
+    {
+      "name": "identrust",
+      "operator": "identrust",
+      "root_file": "identrust.pem",
+      "root_sha256": "30d0895a9a448a262091635522d1f52010b5867acae12c78ef958fd4f4389f2f",
+      "policies": [
+        "2.16.840.1.113839.0.6.13.3"
+      ],
+      "root_source": "http://validation.identrust.com/roots/publicrootca1.p7c (also in Mozilla/certifi: True; in macOS system roots: True)"
+    },
+    {
+      "name": "sslcom",
+      "operator": "sslcom",
+      "root_file": "sslcom.pem",
+      "root_sha256": "85666a562ee0be5ce925c1d8890a6f76a87ec16d4d7d5f29ea7419cf20123b69",
+      "policies": [
+        "1.3.6.1.4.1.38064.1.3.6.1"
+      ],
+      "root_source": "http://www.ssl.com/repository/SSLcomRootCertificationAuthorityRSA.crt (also in Mozilla/certifi: True; in macOS system roots: True)"
+    },
+    {
+      "name": "dfn",
+      "operator": "dfn",
+      "root_file": "dfn.pem",
+      "root_sha256": "3cdc2c9e9e5a36cb5888fd1796cb912f846253b682c1b32057532033510c7bb6",
+      "policies": [
+        "1.3.6.1.4.1.22177.300.22.1"
+      ],
+      "root_source": "http://cdp1.pca.dfn.de/dfn-verein-community-root-ca/pub/cacert/cacert.crt (also in Mozilla/certifi: False; in macOS system roots: False)"
+    }
+  ]
+}

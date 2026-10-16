@@ -1,0 +1,38 @@
+{
+  "name": "sa-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "mock": "bun run mock/server.ts",
+    "contract": "bun run mock/dump.ts",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test --coverage"
+  },
+  "dependencies": {
+    "@xyflow/react": "12.12.0",
+    "d3-hierarchy": "3.1.2",
+    "lightweight-charts": "5.2.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
+    "@happy-dom/global-registrator": "^21.0.1",
+    "@types/bun": "^1.4.3",
+    "@types/d3-hierarchy": "3.1.7",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "fast-check": "4.10.2",
+    "happy-dom": "^21.0.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
+  }
+}

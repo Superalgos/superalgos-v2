@@ -1,0 +1,97 @@
+# sarelay example configuration. Every key is optional except [[chains]]; values shown are the defaults
+# unless marked "demo".
+
+listen = "127.0.0.1:7781"        # relay websocket + NIP-11. Put TLS (wss) in front for public use.
+# public_url = "https://relay.example.org"  # set when behind a proxy: NIP-42 AUTH checks the relay tag against it
+storage_path = "./sarelay-data"  # persistent store (badger); holds events, pending releases, rule sets, allocations
+# D. sa-core applies an allocation core_delay after its ANCHORED time; this relay cannot see anchor proofs and
+# counts from RECEIPT. An anchor proof only lags the receipt (up to max_anchor_latency), so the relay's D must be
+# at least core_delay + max_anchor_latency or it would act on an allocation earlier than sa-core (checked at start-up).
+# Demos set all three to "0s".
+core_delay = "168h"              # the D sa-core uses (provisionally 7 days, SEP-3.35)
+max_anchor_latency = "24h"       # longest an allocation's anchor proof may lag its receipt (OpenTimestamps: hours)
+allocation_delay = "192h"        # the relay's D, >= core_delay + max_anchor_latency (default: exactly that sum)
+time_scale = 1.0                 # multiplies every tier delay. Tests use 0.0166667 (a 60 s timeframe releases over 1 s).
+
+[log]
+level = "info"                   # debug | info | warn | error
+format = "json"                  # json | text
+
+[admin]                          # /healthz and /metrics (Prometheus text); read-only; bearer token required
+listen = "127.0.0.1:7782"        # "" disables
+# token_file = "/run/secrets/sarelay-admin-token"   # else $SARELAY_ADMIN_TOKEN, else <storage_path>/admin.token (generated, 0600)
+
+[limits]
+skew = "10s"                     # max |signal created_ms - relay clock| accepted
+min_timeframe_seconds = 60
+max_timeframe_seconds = 604800
+max_delay_fraction = 100         # largest delay_fraction a rule set may use
+max_providers = 1000
+min_allocation_interval = "10s"  # per SA address; stops allocation spam
+max_message_bytes = 131072
+max_release_delay = "168h"       # cap on delay_fraction x timeframe of every tier (a rule set above it is refused)
+max_pending_per_provider = 5000  # events whose releases have not fired yet, per provider; over it: "blocked:"
+max_pending_total = 100000       # the same, relay-wide
+max_scan_events = 20000          # stored events one REQ or COUNT may examine; also billed against the connection's read rate
+max_conns_per_ip = 64            # simultaneous websockets per client address (in-process); 0 disables
+# forwarded_header = "X-Forwarded-For"  # behind a trusted reverse proxy: count the right-most address it appended
+
+[budget]                         # what anyone-may-publish kinds may occupy in storage; over it: "blocked:"
+max_anchor_events = 50000        # kind 1040
+max_proposal_events = 5000       # kind 9330
+max_vote_events = 50000          # kind 9331
+max_govdelegation_events = 20000 # kind 9333
+max_revocation_events = 20000    # kind 9334
+retention = "2160h"              # 1040 / 9330 / 9331 older than this are deleted (90 days); "0s" keeps them
+
+[rate]                           # token buckets per connection; over the rate -> "rate-limited:" replies, never a disconnect
+zero_power_per_sec = 5
+zero_power_burst = 20
+powered_per_sec = 50
+powered_burst = 200
+publish_per_sec = 20             # applies to REJECTED events; accepted events get 10x
+publish_burst = 40
+
+[oracle]
+cache_ttl = "30s"                # balance cache; also bounds how fast a balance change reaches live subscribers
+max_stale = "10m"                # a failing chain keeps its last good balance this long, then counts as 0
+max_lookups_per_sec = 20         # relay-wide cap on chain reads (one per chain per address); refilled continuously
+lookup_burst = 40
+backoff_base = "2s"              # a chain that fails is not read again for base x 2^(failures-1) ...
+backoff_max = "5m"               # ... at most this long
+
+[policy]
+private_commitment_delay_fraction = 1.0  # private providers: non-entitled clients see a commitment after this x timeframe
+extra_kinds = []                         # additional kinds to store verbatim (e.g. [0] for profiles)
+min_provider_power = 10000               # whole SA tokens the provider's SA address must hold to register a rule set (and keep it); 0 = free (demo)
+min_proposer_power = 10000               # the same for a kind-9330 proposal's SA address; 0 = any valid delegation (demo)
+provider_idle_expiry = "720h"            # a provider with no signal for this long is deregistered (it may register again); "0s" never
+provider_recheck_interval = "10m"        # how often idleness and provider balances are re-examined
+
+# Chain registry. Token power = sum of the SA balance over every enabled chain, in 18-decimal units.
+[[chains]]
+id = "bsc"
+kind = "evm"
+rpc = "https://bsc-dataseed.binance.org"
+contract = "0xfb981ed9a92377ca4d75d924b9ca06df163924fd"
+decimals = 18
+
+[[chains]]
+id = "ethereum"
+kind = "evm"
+rpc = "https://ethereum-rpc.publicnode.com"
+contract = "0xc17272c3e15074c55b810bceba02ba0c4481cd79"
+decimals = 18
+
+[[chains]]
+id = "zksync"
+kind = "evm"
+rpc = "https://mainnet.era.zksync.io"
+contract = "0xe3d85bd3363b6f0f91351591f9a8fd0d0a1145ed"  # zkSync Era (chain 324); same registry values as sa-core chains.toml
+decimals = 18
+
+# Tests and demos: balances come from a JSON file {"0xaddress": "tokens"} read on every lookup.
+# [[chains]]
+# id = "fixture"
+# kind = "fixture"
+# file = "./balances.json"

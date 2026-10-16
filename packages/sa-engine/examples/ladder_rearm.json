@@ -1,0 +1,326 @@
+{
+  "schema_version": 2,
+  "name": "ladder-rearm",
+  "description": "A 10-level buy ladder on 15m bars that re-arms: level N rests N/2 ATR under the close when placed, each fill is sold 0.6% above its own price, and a filled level is placed again at the then-current price. Levels are not placed while RSI(14) is 30 or lower and working levels are cancelled below RSI 20. The cap of 100% of equity keeps the ladder from stacking beyond the account; a 12% drawdown flattens everything.",
+  "timeframe": "15m",
+  "stages": {
+    "trigger": {
+      "on": {
+        "any": [
+          {
+            "name": "always",
+            "all": [
+              "true"
+            ]
+          }
+        ]
+      }
+    },
+    "open": {
+      "when": {
+        "any": [
+          {
+            "name": "arm the ladder",
+            "all": [
+              "true"
+            ]
+          }
+        ]
+      },
+      "orders": [
+        {
+          "id": "level_01",
+          "type": "limit",
+          "size_fraction": 0.09,
+          "rate": "close - 0.5 * atr(14)",
+          "create": {
+            "any": [
+              {
+                "name": "not in a panic",
+                "all": [
+                  "rsi(close, 14) > 30"
+                ]
+              }
+            ]
+          },
+          "cancel": {
+            "any": [
+              {
+                "name": "panic",
+                "all": [
+                  "rsi(close, 14) < 20"
+                ]
+              }
+            ]
+          },
+          "rearm": true,
+          "take_profit_pct": 0.6
+        },
+        {
+          "id": "level_02",
+          "type": "limit",
+          "size_fraction": 0.09,
+          "rate": "close - 1 * atr(14)",
+          "create": {
+            "any": [
+              {
+                "name": "not in a panic",
+                "all": [
+                  "rsi(close, 14) > 30"
+                ]
+              }
+            ]
+          },
+          "cancel": {
+            "any": [
+              {
+                "name": "panic",
+                "all": [
+                  "rsi(close, 14) < 20"
+                ]
+              }
+            ]
+          },
+          "rearm": true,
+          "take_profit_pct": 0.6
+        },
+        {
+          "id": "level_03",
+          "type": "limit",
+          "size_fraction": 0.09,
+          "rate": "close - 1.5 * atr(14)",
+          "create": {
+            "any": [
+              {
+                "name": "not in a panic",
+                "all": [
+                  "rsi(close, 14) > 30"
+                ]
+              }
+            ]
+          },
+          "cancel": {
+            "any": [
+              {
+                "name": "panic",
+                "all": [
+                  "rsi(close, 14) < 20"
+                ]
+              }
+            ]
+          },
+          "rearm": true,
+          "take_profit_pct": 0.6
+        },
+        {
+          "id": "level_04",
+          "type": "limit",
+          "size_fraction": 0.09,
+          "rate": "close - 2 * atr(14)",
+          "create": {
+            "any": [
+              {
+                "name": "not in a panic",
+                "all": [
+                  "rsi(close, 14) > 30"
+                ]
+              }
+            ]
+          },
+          "cancel": {
+            "any": [
+              {
+                "name": "panic",
+                "all": [
+                  "rsi(close, 14) < 20"
+                ]
+              }
+            ]
+          },
+          "rearm": true,
+          "take_profit_pct": 0.6
+        },
+        {
+          "id": "level_05",
+          "type": "limit",
+          "size_fraction": 0.09,
+          "rate": "close - 2.5 * atr(14)",
+          "create": {
+            "any": [
+              {
+                "name": "not in a panic",
+                "all": [
+                  "rsi(close, 14) > 30"
+                ]
+              }
+            ]
+          },
+          "cancel": {
+            "any": [
+              {
+                "name": "panic",
+                "all": [
+                  "rsi(close, 14) < 20"
+                ]
+              }
+            ]
+          },
+          "rearm": true,
+          "take_profit_pct": 0.6
+        },
+        {
+          "id": "level_06",
+          "type": "limit",
+          "size_fraction": 0.09,
+          "rate": "close - 3 * atr(14)",
+          "create": {
+            "any": [
+              {
+                "name": "not in a panic",
+                "all": [
+                  "rsi(close, 14) > 30"
+                ]
+              }
+            ]
+          },
+          "cancel": {
+            "any": [
+              {
+                "name": "panic",
+                "all": [
+                  "rsi(close, 14) < 20"
+                ]
+              }
+            ]
+          },
+          "rearm": true,
+          "take_profit_pct": 0.6
+        },
+        {
+          "id": "level_07",
+          "type": "limit",
+          "size_fraction": 0.09,
+          "rate": "close - 3.5 * atr(14)",
+          "create": {
+            "any": [
+              {
+                "name": "not in a panic",
+                "all": [
+                  "rsi(close, 14) > 30"
+                ]
+              }
+            ]
+          },
+          "cancel": {
+            "any": [
+              {
+                "name": "panic",
+                "all": [
+                  "rsi(close, 14) < 20"
+                ]
+              }
+            ]
+          },
+          "rearm": true,
+          "take_profit_pct": 0.6
+        },
+        {
+          "id": "level_08",
+          "type": "limit",
+          "size_fraction": 0.09,
+          "rate": "close - 4 * atr(14)",
+          "create": {
+            "any": [
+              {
+                "name": "not in a panic",
+                "all": [
+                  "rsi(close, 14) > 30"
+                ]
+              }
+            ]
+          },
+          "cancel": {
+            "any": [
+              {
+                "name": "panic",
+                "all": [
+                  "rsi(close, 14) < 20"
+                ]
+              }
+            ]
+          },
+          "rearm": true,
+          "take_profit_pct": 0.6
+        },
+        {
+          "id": "level_09",
+          "type": "limit",
+          "size_fraction": 0.09,
+          "rate": "close - 4.5 * atr(14)",
+          "create": {
+            "any": [
+              {
+                "name": "not in a panic",
+                "all": [
+                  "rsi(close, 14) > 30"
+                ]
+              }
+            ]
+          },
+          "cancel": {
+            "any": [
+              {
+                "name": "panic",
+                "all": [
+                  "rsi(close, 14) < 20"
+                ]
+              }
+            ]
+          },
+          "rearm": true,
+          "take_profit_pct": 0.6
+        },
+        {
+          "id": "level_10",
+          "type": "limit",
+          "size_fraction": 0.09,
+          "rate": "close - 5 * atr(14)",
+          "create": {
+            "any": [
+              {
+                "name": "not in a panic",
+                "all": [
+                  "rsi(close, 14) > 30"
+                ]
+              }
+            ]
+          },
+          "cancel": {
+            "any": [
+              {
+                "name": "panic",
+                "all": [
+                  "rsi(close, 14) < 20"
+                ]
+              }
+            ]
+          },
+          "rearm": true,
+          "take_profit_pct": 0.6
+        }
+      ]
+    },
+    "close": {
+      "when": {
+        "any": [
+          {
+            "name": "drawdown stop",
+            "all": [
+              "unrealized_pnl_pct < -12"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "name": "atlas-ema-1h",
+  "description": "Demo strategy (public provider): buy when EMA2 crosses above EMA5 on 1h bars, sell on the opposite cross; 2% protective stop. Trades often on purpose so a short replay yields signals. Not a trading idea.",
+  "timeframe": "1h",
+  "stages": {
+    "trigger": { "on": { "any": [{ "name": "always", "all": ["true"] }] } },
+    "open": {
+      "when": { "any": [{ "name": "fast over slow", "all": ["cross_above(ema(close, 2), ema(close, 5))"] }] },
+      "orders": [{ "id": "entry", "type": "market", "size_fraction": 0.5, "stop_loss_pct": 2 }]
+    },
+    "close": { "when": { "any": [{ "name": "fast under slow", "all": ["cross_below(ema(close, 2), ema(close, 5))"] }] } }
+  }
+}

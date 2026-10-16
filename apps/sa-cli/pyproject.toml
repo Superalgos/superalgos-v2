@@ -1,0 +1,23 @@
+[project]
+name = "sa-cli"
+version = "0.1.0"
+description = "Superalgos v2 command line: keys, identity, allocation, provider and follower bots, backtest, track records, governance"
+requires-python = ">=3.12,<3.14"
+license = "Apache-2.0"
+dependencies = [
+    "sa-core",
+    "sa-engine",
+    "sa-api",  # `sa demo` starts the read-only API and the dashboard it serves
+]
+
+[project.scripts]
+sa = "sa_cli.main:run"
+
+[tool.uv.sources]
+sa-core = { workspace = true }
+sa-engine = { workspace = true }
+sa-api = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.12.23,<0.14.0"]
+build-backend = "uv_build"

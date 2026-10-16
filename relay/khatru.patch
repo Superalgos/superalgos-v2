@@ -1,0 +1,67 @@
+--- a/handlers.go
++++ b/handlers.go
+@@ -328,8 +328,10 @@
+ 				case *nostr.AuthEnvelope:
+ 					wsBaseUrl := strings.Replace(rl.getBaseURL(r), "http", "ws", 1)
+ 					if pubkey, ok := nip42.ValidateAuthEvent(&env.Event, ws.Challenge, wsBaseUrl); ok {
+-						ws.AuthedPublicKey = pubkey
++						authEvent := env.Event // copy: the envelope is not ours to keep
+ 						ws.authLock.Lock()
++						ws.AuthedPublicKey = pubkey
++						ws.authEvent = &authEvent
+ 						if ws.Authed != nil {
+ 							close(ws.Authed)
+ 							ws.Authed = nil
+--- a/websocket.go
++++ b/websocket.go
+@@ -6,6 +6,7 @@
+ 	"sync"
+ 
+ 	"github.com/fasthttp/websocket"
++	"github.com/nbd-wtf/go-nostr"
+ 	"github.com/puzpuzpuz/xsync/v3"
+ )
+ 
+@@ -23,7 +24,10 @@
+ 	// nip42
+ 	Challenge       string
+ 	AuthedPublicKey string
+-	Authed          chan struct{}
++	// authEvent is the validated kind-22242 event, read through AuthEventSnapshot.
++	// (Local patch: stock khatru discards the event after checking it.)
++	authEvent *nostr.Event
++	Authed    chan struct{}
+ 
+ 	// nip77
+ 	negentropySessions *xsync.MapOf[string, *NegentropySession]
+@@ -44,3 +48,11 @@
+ 	ws.mutex.Unlock()
+ 	return err
+ }
++
++// AuthEventSnapshot returns the last validated NIP-42 AUTH event of this connection, or nil.
++// (Local patch.) Policies read extra AUTH tags from it, e.g. the sa-delegation tag.
++func (ws *WebSocket) AuthEventSnapshot() *nostr.Event {
++	ws.authLock.Lock()
++	defer ws.authLock.Unlock()
++	return ws.authEvent
++}
+--- a/listener.go
++++ b/listener.go
+@@ -134,9 +134,15 @@
+ 
+ // returns how many listeners were notified
+ func (rl *Relay) notifyListeners(event *nostr.Event) int {
++	// Local patch: snapshot under the lock. Stock khatru ranges over rl.listeners unlocked while
++	// REQ/CLOSE handlers append and swap-delete it (go test -race flags this).
++	rl.clientsMutex.Lock()
++	snapshot := append([]listener(nil), rl.listeners...)
++	rl.clientsMutex.Unlock()
++
+ 	count := 0
+ listenersloop:
+-	for _, listener := range rl.listeners {
++	for _, listener := range snapshot {
+ 		if listener.filter.Matches(event) {
+ 			for _, pb := range rl.PreventBroadcast {
+ 				if pb(listener.ws, event) {

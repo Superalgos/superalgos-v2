@@ -1,0 +1,35 @@
+# SA token registry. Token power = sum of SA balances over every enabled entry (SEP-2.6).
+# Adding a chain is one [[chain]] block; nothing else in the code names a chain.
+# Read-only: the oracle only ever issues eth_call(balanceOf) / eth_blockNumber.
+
+[[chain]]
+id = 56
+name = "bsc"
+rpc = "https://bsc-dataseed.binance.org"
+contract = "0xfb981ed9a92377ca4d75d924b9ca06df163924fd"
+decimals = 18
+enabled = true
+# Source: Superalgos v1, Projects/Governance/UI/Globals/SAToken.js (SA_TOKEN_LIST, chain "BSC")
+
+[[chain]]
+id = 1
+name = "ethereum"
+rpc = "https://ethereum-rpc.publicnode.com"
+contract = "0xc17272c3e15074c55b810bceba02ba0c4481cd79"
+decimals = 18
+enabled = true
+# Source: superalgos.org/token-overview.shtml; same address in v1 SAToken.js (chain "ETH")
+
+[[chain]]
+id = 324
+name = "zksync"
+rpc = "https://mainnet.era.zksync.io"
+contract = "0xe3d85bd3363b6f0f91351591f9a8fd0d0a1145ed"
+decimals = 18
+enabled = true
+# Source: Superalgos v1 repo (github.com/Superalgos/Superalgos, local checkout master @ 48bca2e31),
+# Projects/Governance/UI/Globals/SAToken.js, SA_TOKEN_LIST entry chain "ZKS", contractAddress
+# 0xe3d85Bd3363B6f0F91351591f9a8fD0d0a1145Ed (stored lowercase here). Chain id 324 = zkSync Era
+# mainnet. The address was NOT cross-checked against superalgos.org/token-overview.shtml (that host
+# was unreachable from the build sandbox) nor read on-chain; confirm with
+# `SA_ONLINE=1 uv run pytest -m online` before relying on it for balances.

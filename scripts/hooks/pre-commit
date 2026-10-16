@@ -1,0 +1,5 @@
+#!/bin/sh
+# Superalgos v2 pre-commit: ruff, mypy --strict, fast tests. Enable with `make hooks`.
+set -e
+cd "$(git rev-parse --show-toplevel)"
+make lint typecheck test-fast

@@ -1,0 +1,200 @@
+{
+ "events": {
+  "allocation": {
+   "content": "{\"v\":1,\"address\":\"0xdb2430b4e9ac14be6554d3942822be74811a1af9\",\"nonce\":5,\"governance\":3000,\"providers\":{\"466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27\":4000,\"2c0b7cf95324a07d05398b240174dc0c2be444d96b159aa6c7f7b1e668680991\":3000},\"sig\":\"0x437cc83ca68e86b3078ea3a6a1e08bd9d6e4364e69d39ebe1100842eb6bcc57d5e6aa4388363984954bccac8072a736766ac6111fd7cc187a9ea344c636d70691c\"}",
+   "created_at": 1700000000,
+   "id": "2d8bcb7246fb517d05ef1ff3eb91bc23b1b2b28d8aa1ec87e7c1aa174aab1620",
+   "kind": 9332,
+   "pubkey": "3c72addb4fdf09af94f0c94d7fe92a386a7e70cf8a1d85916386bb2535c7b1b1",
+   "sig": "b8fc2940ace21859192019a5174326ab5c48513776bfe4cf64b89c5f009e117fb1ec392a48b4e51ef2a29c3a99510987d5964ef9d1e8523e0c5049efde080917",
+   "tags": [
+    [
+     "p",
+     "2c0b7cf95324a07d05398b240174dc0c2be444d96b159aa6c7f7b1e668680991"
+    ],
+    [
+     "p",
+     "466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27"
+    ],
+    [
+     "sa-delegation",
+     "0xdb2430b4e9ac14be6554d3942822be74811a1af9",
+     "4102444800",
+     "0xcc3f4893c9e07417ac20d3bbb8d5a55b927c5baf032331b3c9ec0dcbf577bd80293e297671f0ab86fb6ca04168285691d4d445f9ed42e6cd85527ca92332d2de1b"
+    ]
+   ]
+  },
+  "allocation_governance_only": {
+   "content": "{\"v\":1,\"address\":\"0xae72a48c1a36bd18af168541c53037965d26e4a8\",\"nonce\":6,\"governance\":10000,\"providers\":{},\"sig\":\"0xc7fa948fadf873766ff6f017332fa68290bcd57d1ed504ea4fe0c0d69a091b046a6e246fd7eeee26bc981c0c093750b6d47476393edf755bbb5df30b374334ea1c\"}",
+   "created_at": 1700000000,
+   "id": "0e7096be935bb4bda62e48e167e8bff9f4902b8ecf7b69ee870050ad55856941",
+   "kind": 9332,
+   "pubkey": "3c72addb4fdf09af94f0c94d7fe92a386a7e70cf8a1d85916386bb2535c7b1b1",
+   "sig": "3e071057f929455e0a7023fc3b833fc441e2166da592c2a3e42e4e67f2e3b5088578a6e248da0cf9bdac052efdf97953025f86bbcad30e3eb77a0d9b79e003c2",
+   "tags": [
+    [
+     "sa-delegation",
+     "0xae72a48c1a36bd18af168541c53037965d26e4a8",
+     "4102444800",
+     "0x7c19874ef70dc9501f8e451dae20ad93b6e2ac44e85d1203c7d56ff2a432ea4001f2800a2ffae14e118d95fc923759af07811b5f888f190696544a7d72842e7f1b"
+    ]
+   ]
+  },
+  "auth": {
+   "content": "",
+   "created_at": 1700000000,
+   "id": "12b51c215099a33015cac57ed1971ca6e4bf7ceb9a460a5d39ed4651c7962232",
+   "kind": 22242,
+   "pubkey": "3c72addb4fdf09af94f0c94d7fe92a386a7e70cf8a1d85916386bb2535c7b1b1",
+   "sig": "728fc5a11531a73bb9adb65cd6aa86fa6430e9f5d5424b3b305373d262cccf38ebe7b41f2aa529d31593713fd7a46cd48c151191f2d618eae58fc3d9c002cc10",
+   "tags": [
+    [
+     "relay",
+     "ws://relay.test"
+    ],
+    [
+     "challenge",
+     "c0ffee"
+    ],
+    [
+     "sa-delegation",
+     "0xdb2430b4e9ac14be6554d3942822be74811a1af9",
+     "4102444800",
+     "0xcc3f4893c9e07417ac20d3bbb8d5a55b927c5baf032331b3c9ec0dcbf577bd80293e297671f0ab86fb6ca04168285691d4d445f9ed42e6cd85527ca92332d2de1b"
+    ]
+   ]
+  },
+  "commitment": {
+   "content": "{\"v\":1,\"strategy_id\":\"alpha\",\"seq\":1,\"prev\":null,\"digest\":\"c288ed12875f5e787966f2e3245d05ddcc10320617d058f65fa871f2a5000e61\"}",
+   "created_at": 1700000000,
+   "id": "05b780189775d303f18ff2f60cfbf64d1d0a672eba87b2498740193ac7f237bf",
+   "kind": 9318,
+   "pubkey": "2c0b7cf95324a07d05398b240174dc0c2be444d96b159aa6c7f7b1e668680991",
+   "sig": "5a1c3f0c9bd0256c28fe1cee522a29377a86201bd056f98d9810d05ccaf82dbfb12a8bac52bbf3dccaed30dada4876f76ba676b189e28bf032ab198639641560",
+   "tags": [
+    [
+     "sa-delegation",
+     "0xe1fae9b4fab2f5726677ecfa912d96b0b683e6a9",
+     "4102444800",
+     "0xdf6cefa6c8737a03ee66bff5b10b75d52aa8b46f86bacaaf5d9ad2490dc94fb161ce6181ad76da56c2c73aa9914206e4b513038b4ab9c5f65da3c9e3b17d1a511b"
+    ]
+   ]
+  },
+  "gov_delegation": {
+   "content": "{\"v\":1,\"address\":\"0xdb2430b4e9ac14be6554d3942822be74811a1af9\",\"nonce\":3,\"to\":{\"0xae72a48c1a36bd18af168541c53037965d26e4a8\":2500},\"sig\":\"0x367566a3cfbd435032d3038ce381e6fb38f0cd3cd7ded0457c44c63bbd52b6684660569e32a01adc752dae637f7e0b1d3abdf7fe3201fb09c0e37023a81ae6461b\"}",
+   "created_at": 1700000000,
+   "id": "d42991af43f52df0cc445654c0cf18a8d512a543b349d905057df26916fc3232",
+   "kind": 9333,
+   "pubkey": "3c72addb4fdf09af94f0c94d7fe92a386a7e70cf8a1d85916386bb2535c7b1b1",
+   "sig": "d907c9704f2611d81b1015a8528ce2b993515928b5da2dac73f92d6bebb5e814ba5234b14e4796a85ffaa9ea210c34ea24f7143d3d5c4123ec75e8f9b4b5aff3",
+   "tags": []
+  },
+  "ruleset_private": {
+   "content": "{\"v\":1,\"provider\":\"2c0b7cf95324a07d05398b240174dc0c2be444d96b159aa6c7f7b1e668680991\",\"sa_address\":\"0xe1fae9b4fab2f5726677ecfa912d96b0b683e6a9\",\"timeframe\":3600,\"tiers\":null,\"private\":{\"min_power\":1000},\"sig\":\"0xe85563008b44251f7d12c8b305a10924fb2f96d8c60ef17bb15bcf86cf6c002a482c76062688c55293518c2817035fae71d7a3895ace971c5381a46619977f7d1c\"}",
+   "created_at": 1700000000,
+   "id": "ec649b6d29653695c0d1890e6bb5a569c7b42a1c74c59bd8ea5fdbdc7f00e3a6",
+   "kind": 37318,
+   "pubkey": "2c0b7cf95324a07d05398b240174dc0c2be444d96b159aa6c7f7b1e668680991",
+   "sig": "078d8078b67cfa0c2375e1572ed2836be82a9eff39bd2efbae403533a06dda8166c4a8085e861e376d3ee2666d38e4cff8ea8fde7a28bbec273d67f617b6047d",
+   "tags": [
+    [
+     "d",
+     "2c0b7cf95324a07d05398b240174dc0c2be444d96b159aa6c7f7b1e668680991"
+    ],
+    [
+     "sa-delegation",
+     "0xe1fae9b4fab2f5726677ecfa912d96b0b683e6a9",
+     "4102444800",
+     "0xdf6cefa6c8737a03ee66bff5b10b75d52aa8b46f86bacaaf5d9ad2490dc94fb161ce6181ad76da56c2c73aa9914206e4b513038b4ab9c5f65da3c9e3b17d1a511b"
+    ]
+   ]
+  },
+  "ruleset_public": {
+   "content": "{\"v\":1,\"provider\":\"466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27\",\"sa_address\":\"0x19e7e376e7c213b7e7e7e46cc70a5dd086daff2a\",\"timeframe\":3600,\"tiers\":[{\"min_power\":500000,\"delay_fraction\":0.0},{\"min_power\":100000,\"delay_fraction\":0.1},{\"min_power\":10000,\"delay_fraction\":0.5},{\"min_power\":0,\"delay_fraction\":2.0}],\"private\":null,\"sig\":\"0x887701130fd2ca566fa1815e2be3d150ac88ac61e43b2bc8e57c5b408af6c9a902b6ca225018d3720902969d8e1f8fc097923b20c4fe1647f2b7cc5652f3bbea1b\"}",
+   "created_at": 1700000000,
+   "id": "7ce1a4f331c73ce5d5aa264d9951988f46e032962b5d05efb82af94dc2890889",
+   "kind": 37318,
+   "pubkey": "466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27",
+   "sig": "3318a9b6bfc7b0717333523cbac837653b7b40f8e9f6e505ff068da6aaef0be43618e4c64a8f514897dd10cd7b2898a7dcd5d2302137891cdeb39627c3da9a20",
+   "tags": [
+    [
+     "d",
+     "466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27"
+    ],
+    [
+     "sa-delegation",
+     "0x19e7e376e7c213b7e7e7e46cc70a5dd086daff2a",
+     "4102444800",
+     "0xe3788a8359b57d3c93f8ae17f268878b82e89bde4f322a823500069b469d899b63ad780e51024e291ec447d9911ea920c62851f4d02be8de933356a461a5a3f21c"
+    ]
+   ]
+  },
+  "signal_private": {
+   "content": "ApW4MDH8qGr+I+KZYDV7qGD7F69o8g6oZkmVtwYzUkWpA+XMbON2AVTvKXMtZYCK1fpYC3hNRK6c+BJKVwD5aEf3ArU3V9mLtvV7VFC3idw7XpL9vdU9XfsX68LEnQALn5Ai+f5/+xkFgLGi5pZV2b9UeYCqtjl0GwflOAVaaaBQx3RmLiW550LPoLhGsvyYLRdTMbdE8Dosb4Fwb1rW2bec4HJgb5QIBRkf+hy+0nrRz+qRj3WKrkUwHKJD+g3n2/LSajjBtSyUrD3+McUJOTUro+XxKhbGe6wDd3PvfcDOaTEOeDiR/ZBux3XH0W57dAG0JlOqpMyKH/FRK6itk6FiHayhcfTX6JrtyJwQP/I4IndQLHlQBGJNYnjG3xA7BHYjntTrzDEY7aB6c6nJ4cTddgDUqcY7dqTCsbpoMWjpsuE=",
+   "created_at": 1700000000,
+   "id": "23e60ba49f2bfbe53474fd337c784607129e6063e662c00c7d51fa58743f24e0",
+   "kind": 9317,
+   "pubkey": "2c0b7cf95324a07d05398b240174dc0c2be444d96b159aa6c7f7b1e668680991",
+   "sig": "9a2e5f0bdfbc43afa48f3001c939486ef93784266c97f61d05acdd7802409d9aa5e90b259ee3f862a6166ebe98cd35c27d61c1004cfcfa05c3ece3ffaad487c1",
+   "tags": [
+    [
+     "sa-delegation",
+     "0xe1fae9b4fab2f5726677ecfa912d96b0b683e6a9",
+     "4102444800",
+     "0xdf6cefa6c8737a03ee66bff5b10b75d52aa8b46f86bacaaf5d9ad2490dc94fb161ce6181ad76da56c2c73aa9914206e4b513038b4ab9c5f65da3c9e3b17d1a511b"
+    ],
+    [
+     "p",
+     "3c72addb4fdf09af94f0c94d7fe92a386a7e70cf8a1d85916386bb2535c7b1b1"
+    ]
+   ]
+  },
+  "signal_public": {
+   "content": "{\"v\":1,\"strategy_id\":\"alpha\",\"seq\":1,\"prev\":null,\"instrument\":\"BINANCE:BTCUSDT\",\"side\":\"buy\",\"action\":\"open\",\"size_fraction\":0.25,\"order_type\":\"market\",\"limit_price\":null,\"stop_price\":null,\"timeframe\":3600,\"created_ms\":1700000000000}",
+   "created_at": 1700000000,
+   "id": "2146aa5868b2af12b41a03d1e2fdc7a1960b94be90efd92e0b00c7e9ca75d98f",
+   "kind": 9317,
+   "pubkey": "466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27",
+   "sig": "943a1fa07511f534de50044a1010a21580c85921889ba2792bd6d8965333031622e9850a142d6cb918889da21877a354b7c155cbc22d1faca624deb9f60de446",
+   "tags": [
+    [
+     "sa-delegation",
+     "0x19e7e376e7c213b7e7e7e46cc70a5dd086daff2a",
+     "4102444800",
+     "0xe3788a8359b57d3c93f8ae17f268878b82e89bde4f322a823500069b469d899b63ad780e51024e291ec447d9911ea920c62851f4d02be8de933356a461a5a3f21c"
+    ]
+   ]
+  },
+  "vote": {
+   "content": "{\"v\":1,\"proposal\":\"abababababababababababababababababababababababababababababababab\",\"option\":1,\"nonce\":0}",
+   "created_at": 1700000000,
+   "id": "91728848f650aacb9ccfc2e023d1e2bcf384dfd57ba302545c72b2a595591590",
+   "kind": 9331,
+   "pubkey": "3c72addb4fdf09af94f0c94d7fe92a386a7e70cf8a1d85916386bb2535c7b1b1",
+   "sig": "9f09d013f73f2098c17d9e059c74cf20c21f17cfa169a36311c9b8c3547101a3ba44b923c95a42570f14ba68d97a5c83d299565b6fa8a1684c9898d832afbd55",
+   "tags": [
+    [
+     "e",
+     "abababababababababababababababababababababababababababababababab"
+    ],
+    [
+     "sa-delegation",
+     "0xdb2430b4e9ac14be6554d3942822be74811a1af9",
+     "4102444800",
+     "0xcc3f4893c9e07417ac20d3bbb8d5a55b927c5baf032331b3c9ec0dcbf577bd80293e297671f0ab86fb6ca04168285691d4d445f9ed42e6cd85527ca92332d2de1b"
+    ]
+   ]
+  }
+ },
+ "far_future": 4102444800,
+ "generated_with": "sa_core (packages/sa-core) via uv run; see gen_pyvectors.py",
+ "keys": {
+  "follower_address": "0xdb2430b4e9ac14be6554d3942822be74811a1af9",
+  "follower_pubkey": "3c72addb4fdf09af94f0c94d7fe92a386a7e70cf8a1d85916386bb2535c7b1b1",
+  "follower_secret_hex": "3333333333333333333333333333333333333333333333333333333333333333",
+  "provider_private_pubkey": "2c0b7cf95324a07d05398b240174dc0c2be444d96b159aa6c7f7b1e668680991",
+  "provider_public_pubkey": "466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27",
+  "sa_private_address": "0xe1fae9b4fab2f5726677ecfa912d96b0b683e6a9",
+  "sa_public_address": "0x19e7e376e7c213b7e7e7e46cc70a5dd086daff2a"
+ }
+}

@@ -1,0 +1,27 @@
+# sarelay for the public test relay (behind the host's Kong TLS proxy). Paper-trading round: balances come from the
+# fixture file the operator maintains (balances/balances.json, mounted read-only), so power is whatever the operator lists.
+listen = "0.0.0.0:7781"
+public_url = "wss://relay.example.org"   # NIP-42 AUTH relay tags are checked against this, not the internal address
+storage_path = "/data/relay-data"
+
+# Test round: allocations take effect on receipt and delays run in real time (as in the live test relay).
+allocation_delay = "0s"
+core_delay = "0s"
+max_anchor_latency = "0s"
+time_scale = 1.0
+
+[admin]
+listen = "127.0.0.1:7782"        # inside the container only
+
+[log]
+format = "json"
+level = "info"
+
+# Public: every cap keeps its default (see relay/README.md "Resource limits"), except the proxy header.
+[limits]
+forwarded_header = "X-Forwarded-For"   # Kong is the trusted proxy: count the right-most address it appended
+
+[[chains]]
+id = "fixture"
+kind = "fixture"
+file = "/etc/sarelay/balances/balances.json"

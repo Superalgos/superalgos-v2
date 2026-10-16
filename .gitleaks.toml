@@ -1,0 +1,9 @@
+# gitleaks configuration: the default rules plus allow-lists for known, public test material.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "public NIP-44 test vectors and test-only marker constants"
+regexTarget = "line"
+regexes = ['''SECRET-MARKER-[0-9a-f]+''']
+paths = ['''packages/sa-core/tests/data/nip44\.vectors\.json''']

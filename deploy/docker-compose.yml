@@ -1,0 +1,94 @@
+# The demo network in containers: relay, a throwaway TSA farm, one setup job, two providers, three followers, and the
+# read-only API serving the dashboard. Same code as `sa demo`, one role per container.
+#
+#   docker compose -f deploy/docker-compose.yml up --build        # then open http://127.0.0.1:8787
+#   docker compose -f deploy/docker-compose.yml down -v           # reset (new run = new throwaway identities)
+#
+# Throwaway keys and fixture balances only: no real wallet, no real chain transaction, no real exchange order.
+# The only published port is the dashboard, bound to the host's loopback. The replay downloads Binance's public
+# monthly archive once into the `data` volume.
+name: superalgos-v2
+
+x-sa: &sa
+  image: superalgos-v2:demo
+  build:
+    context: ..
+    dockerfile: deploy/Dockerfile
+  environment:
+    SA_PASSPHRASE: demo-throwaway-passphrase # protects keys that exist only in this demo's volume
+    SA_SCRYPT_N: "1024"
+    SA_DATA_DIR: /data
+    PYTHONUNBUFFERED: "1"
+  volumes:
+    - work:/work
+    - data:/data
+  restart: "no"
+
+x-role: &role
+  <<: *sa
+  depends_on:
+    setup:
+      condition: service_completed_successfully
+
+services:
+  relay:
+    <<: *sa
+    command:
+      - sh
+      - -c
+      - "test -f /work/balances.json || echo '{}' > /work/balances.json; exec sarelay -config /etc/sarelay/sarelay.toml"
+    volumes:
+      - work:/work
+      - ./sarelay.compose.toml:/etc/sarelay/sarelay.toml:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 7781), 2)"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  tsa:
+    <<: *sa
+    command: ["sa", "demo", "--role", "tsa", "--workdir", "/work"]
+
+  setup:
+    <<: *sa
+    command:
+      [
+        "sa", "demo", "--role", "setup", "--workdir", "/work", "--relay-url", "ws://relay:7781",
+        "--web-dist", "/app/web-dist", "--speed", "1440", "--days", "2", "--lead", "45",
+      ]
+    depends_on:
+      relay:
+        condition: service_healthy
+      tsa:
+        condition: service_started
+
+  provider-atlas:
+    <<: *role
+    command: ["sa", "demo", "--role", "provider", "--name", "atlas", "--workdir", "/work", "--relay-url", "ws://relay:7781"]
+
+  provider-fox:
+    <<: *role
+    command: ["sa", "demo", "--role", "provider", "--name", "fox", "--workdir", "/work", "--relay-url", "ws://relay:7781"]
+
+  follower-whale:
+    <<: *role
+    command: ["sa", "demo", "--role", "follower", "--name", "whale", "--workdir", "/work", "--relay-url", "ws://relay:7781"]
+
+  follower-mid:
+    <<: *role
+    command: ["sa", "demo", "--role", "follower", "--name", "mid", "--workdir", "/work", "--relay-url", "ws://relay:7781"]
+
+  follower-zero:
+    <<: *role
+    command: ["sa", "demo", "--role", "follower", "--name", "zero", "--workdir", "/work", "--relay-url", "ws://relay:7781"]
+
+  api:
+    <<: *role
+    command: ["sa", "demo", "--role", "api", "--workdir", "/work", "--api-host", "0.0.0.0", "--port", "8787"]
+    ports:
+      - "127.0.0.1:8787:8787" # the dashboard and the read-only API, local only
+
+volumes:
+  work:
+  data:
