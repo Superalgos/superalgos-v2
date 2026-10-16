@@ -49,3 +49,4 @@ SEPs change by pull request, in the same pull request as the code they describe.
 | [15](sep-0015.md) | Explain and notify | Draft | 0/4 |
 | [16](sep-0016.md) | Documentation | Draft | 0/6 |
 | [17](sep-0017.md) | Discovery (relays and providers) | Draft | 0/6 |
+| [18](sep-0018.md) | Signal tracing and logs | Draft | 0/8 |
