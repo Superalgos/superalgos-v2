@@ -1,7 +1,10 @@
 # Superalgos v2
 
-Superalgos v2 is a new take on the original Superalgos requirements, rebuilt on a current tech base. It starts with the
-part of the plan that gives the SA token its purpose: trading signals you can check. A provider runs a strategy and
+Superalgos v2 is a new take on the original Superalgos requirements, rebuilt on a current tech base: an open-source,
+self-hosted trading platform owned by its community. You design a strategy, backtest it on real market data, paper
+trade it, and chart exactly what the engine computes. Governance stays with SA token holders.
+
+The first network feature is the part of the plan that gives the SA token its purpose: trading signals you can check. A provider runs a strategy and
 publishes each order as a signed, time-stamped message. Followers copy those signals on their own account, at a delay
 that depends on how much SA token power they have given that provider. Anyone can recompute a provider's track record
 from the signed history, without trusting a server or the provider's word.
