@@ -164,7 +164,7 @@ describe("validator", () => {
     });
     v.request({});
     v.request({});
-    await new Promise((r) => setTimeout(r, 40));
+    await new Promise((r) => setTimeout(r, 400));
     expect(calls).toBe(1);
     v.dispose();
   });

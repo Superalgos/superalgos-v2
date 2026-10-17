@@ -29,6 +29,12 @@ import (
 // testScale makes a 60 s timeframe release over 1 s.
 const testScale = 1.0 / 60.0
 
+// harnessWait bounds every wait the test harness makes for the relay to answer or deliver (OK, EOSE, a
+// release). It is not a product requirement: the slowest scheduled release in these tests is ~10 s, and a
+// 2-core CI runner under -race can stall for seconds, so 30 s leaves a wide margin and fires only on a
+// real hang. Latency budgets live in the TestPerf tests (SA_PERF=1), never here.
+const harnessWait = 30 * time.Second
+
 // defaultRules is the protocol's suggested starting table: 0 / 0.1x / 0.5x / 2x at 500k / 100k / 10k / anyone (sa_core.power.DEFAULT_TIERS).
 var defaultRules = []tierSpec{{"500000", "0"}, {"100000", "0.1"}, {"10000", "0.5"}, {"0", "2"}}
 
@@ -265,6 +271,7 @@ type client struct {
 	bodies  map[string]string
 	raws    map[string]json.RawMessage
 	ctl     chan []json.RawMessage
+	oks     map[string]chan []json.RawMessage
 	authCh  chan string
 	nextSub int
 }
@@ -322,6 +329,15 @@ func (cl *client) read() {
 			case cl.authCh <- ch:
 			default:
 			}
+		case "OK":
+			var id string
+			if len(m) > 1 {
+				_ = json.Unmarshal(m[1], &id)
+			}
+			select {
+			case cl.okChan(id) <- m:
+			default: // a duplicate OK for the same id; the first answer is the one that counts
+			}
 		default:
 			cl.ctl <- m
 		}
@@ -335,9 +351,34 @@ func (cl *client) send(v ...any) {
 	}
 }
 
+// okChan is the mailbox for the OK answering event id: goroutines publishing on one connection each wait
+// on their own id, so none can consume (and drop) another's OK from the shared ctl channel.
+func (cl *client) okChan(id string) chan []json.RawMessage {
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
+	if cl.oks == nil {
+		cl.oks = map[string]chan []json.RawMessage{}
+	}
+	ch, ok := cl.oks[id]
+	if !ok {
+		ch = make(chan []json.RawMessage, 1)
+		cl.oks[id] = ch
+	}
+	return ch
+}
+
 func (cl *client) waitCtl(typ, key string, d time.Duration) []json.RawMessage {
 	cl.t.Helper()
 	deadline := time.After(d)
+	if typ == "OK" {
+		select {
+		case m := <-cl.okChan(key):
+			return m
+		case <-deadline:
+			cl.t.Fatalf("timeout waiting for OK %s", key)
+			return nil
+		}
+	}
 	for {
 		select {
 		case m := <-cl.ctl:
@@ -362,14 +403,14 @@ func (cl *client) auth(url, sk string, extra ...nostr.Tag) (bool, string) {
 	var ch string
 	select {
 	case ch = <-cl.authCh:
-	case <-time.After(5 * time.Second):
+	case <-time.After(harnessWait):
 		cl.t.Fatal("no AUTH challenge from relay")
 	}
 	pub, _ := nostr.GetPublicKey(sk)
 	ev := &nostr.Event{PubKey: pub, CreatedAt: nostr.Now(), Kind: 22242, Tags: append(nostr.Tags{{"relay", url}, {"challenge", ch}}, extra...)}
 	_ = ev.Sign(sk)
 	cl.send("AUTH", ev)
-	m := cl.waitCtl("OK", ev.ID, 5*time.Second)
+	m := cl.waitCtl("OK", ev.ID, harnessWait)
 	var good bool
 	var reason string
 	_ = json.Unmarshal(m[2], &good)
@@ -397,7 +438,7 @@ func (cl *client) subID() string {
 func (cl *client) live(f map[string]any) string {
 	sub := cl.subID()
 	cl.send("REQ", sub, f)
-	cl.waitCtl("EOSE", sub, 5*time.Second)
+	cl.waitCtl("EOSE", sub, harnessWait)
 	return sub
 }
 
@@ -405,7 +446,7 @@ func (cl *client) live(f map[string]any) string {
 func (cl *client) query(f map[string]any) (ids []string, closed string) {
 	sub := cl.subID()
 	cl.send("REQ", sub, f)
-	deadline := time.After(5 * time.Second)
+	deadline := time.After(harnessWait)
 	for {
 		select {
 		case m := <-cl.ctl:
@@ -442,7 +483,7 @@ func (cl *client) query(f map[string]any) (ids []string, closed string) {
 func (cl *client) count(f map[string]any) (int64, string) {
 	sub := cl.subID()
 	cl.send("COUNT", sub, f)
-	deadline := time.After(5 * time.Second)
+	deadline := time.After(harnessWait)
 	var notice string
 	for {
 		select {
@@ -480,7 +521,7 @@ func (cl *client) count(f map[string]any) (int64, string) {
 
 func (cl *client) publish(ev *nostr.Event) (bool, string) {
 	cl.send("EVENT", ev)
-	m := cl.waitCtl("OK", ev.ID, 5*time.Second)
+	m := cl.waitCtl("OK", ev.ID, harnessWait)
 	var ok bool
 	var reason string
 	_ = json.Unmarshal(m[2], &ok)

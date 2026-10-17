@@ -208,7 +208,7 @@ func TestH2PendingCapPerProvider(t *testing.T) {
 		t.Errorf("another provider must not be affected: %s", why)
 	}
 	// releases finish (2 s delay + 2 s grace at the test scale), then room returns
-	deadline := time.Now().Add(8 * time.Second)
+	deadline := time.Now().Add(harnessWait)
 	for {
 		if ok, _ := c.publish(a.signal(60, 5)); ok {
 			break
@@ -383,7 +383,7 @@ func TestH2PerIPConnectionCap(t *testing.T) {
 			_ = c.CloseNow()
 		}
 	}()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), harnessWait)
 	defer cancel()
 	for i := 0; i < 3; i++ {
 		c, _, err := websocket.Dial(ctx, r.URL, nil)
@@ -400,7 +400,7 @@ func TestH2PerIPConnectionCap(t *testing.T) {
 		t.Errorf("4th connection: %v (response %v), want HTTP 429", err, resp)
 	}
 	_ = conns[0].CloseNow()
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(harnessWait)
 	for {
 		c, _, err := websocket.Dial(ctx, r.URL, nil)
 		if err == nil {
@@ -470,7 +470,21 @@ func TestM2ProposalNeedsDelegationAndPower(t *testing.T) {
 
 // ---- M3: revocation ----
 
-func TestM3RevocationRefusesPublishAndAuthUnderThatAddress(t *testing.T) {
+func TestM3RevocationRefusesPublishAndAuthUnderThatAddress(t *testing.T) { m3Revocation(t) }
+
+// TestPerfM3RevocationBaseline is the machine-speed half: the top tier is served within 700 ms before the
+// revocation. Local only (SA_PERF=1, `make perf`).
+func TestPerfM3RevocationBaseline(t *testing.T) {
+	perfOnly(t)
+	if d := m3Revocation(t); d > 700*time.Millisecond {
+		t.Errorf("baseline delivery took %s, budget 700ms", d)
+	}
+}
+
+// m3Revocation checks revocation refuses publish and drops the follower to the zero-power tier; it returns
+// the baseline (pre-revocation) delivery time.
+func m3Revocation(t *testing.T) time.Duration {
+	t.Helper()
 	r := startRelay(t, "")
 	c := dial(t, r.URL)
 	prov := registerProvider(t, r, 60, defaultRules)
@@ -484,11 +498,14 @@ func TestM3RevocationRefusesPublishAndAuthUnderThatAddress(t *testing.T) {
 	s1 := prov.signal(60, 1)
 	t0 := time.Now()
 	c.mustPublish(s1)
-	if !first.waitFor(s1.ID, 4*time.Second) {
+	if !first.waitFor(s1.ID, harnessWait) {
 		t.Fatal("no delivery before revocation")
 	}
-	if at, _ := first.firstArrival(s1.ID); at.Sub(t0) > 700*time.Millisecond {
-		t.Fatalf("baseline delivery took %s, the follower should be in the top tier", at.Sub(t0))
+	at1, _ := first.firstArrival(s1.ID)
+	baseline := at1.Sub(t0)
+	// the zero-power tier would take 2 s: well under it proves the top tier
+	if baseline > 1500*time.Millisecond {
+		t.Fatalf("baseline delivery took %s, the follower should be in the top tier", baseline)
 	}
 
 	// the SA address revokes both device keys; a stranger carries the events
@@ -511,7 +528,7 @@ func TestM3RevocationRefusesPublishAndAuthUnderThatAddress(t *testing.T) {
 	s3 := signalBy(dev, nostr.Tags{evmsigDelegation(prov, devPub, time.Now().Add(time.Hour).Unix())}, 60, 3, time.Now().UnixMilli())
 	t1 := time.Now()
 	c.mustPublish(s3)
-	if !second.waitFor(s3.ID, 6*time.Second) || !first.waitFor(s3.ID, 6*time.Second) {
+	if !second.waitFor(s3.ID, harnessWait) || !first.waitFor(s3.ID, harnessWait) {
 		t.Fatal("signal from a fresh provider device never delivered")
 	}
 	for name, cl := range map[string]*client{"already connected": first, "re-authenticated": second} {
@@ -520,6 +537,7 @@ func TestM3RevocationRefusesPublishAndAuthUnderThatAddress(t *testing.T) {
 			t.Errorf("%s follower with a revoked device got the signal after %s; revocation must drop it to the 2 s zero-power tier", name, d)
 		}
 	}
+	return baseline
 }
 
 func TestM3RevocationValidationAndPersistence(t *testing.T) {
@@ -621,11 +639,11 @@ func TestM6AnchorOfAGatedEventFollowsItsRelease(t *testing.T) {
 	if n, _ := zero.count(map[string]any{"kinds": []int{protocol.KindAnchor}}); n != 0 {
 		t.Errorf("zero-power COUNT = %d before the release", n)
 	}
-	if !top.waitFor(anchor.ID, 2*time.Second) {
+	if !top.waitFor(anchor.ID, harnessWait) {
 		t.Error("the top tier never got the attestation")
 	}
 	// the zero-power tier gets it live together with the signal, not before
-	if !zero.waitFor(anchor.ID, 6*time.Second) {
+	if !zero.waitFor(anchor.ID, harnessWait) {
 		t.Fatal("the zero-power tier never got the attestation live")
 	}
 	if d := mustArrival(t, zero, anchor.ID).Sub(t0); d < 1500*time.Millisecond {

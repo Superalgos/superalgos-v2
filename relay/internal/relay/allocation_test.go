@@ -54,7 +54,21 @@ func TestAllocationAcceptance(t *testing.T) {
 }
 
 // SEP-3.35 relay side: an allocation counts only after D. Until then the previous one stays in force.
-func TestAllocationEffectiveAfterD(t *testing.T) {
+func TestAllocationEffectiveAfterD(t *testing.T) { allocationEffectiveAfterD(t) }
+
+// TestPerfAllocationEffectiveAfterD is the machine-speed half: once the allocation counts, the top tier is
+// served within 100 ms. Local only (SA_PERF=1, `make perf`).
+func TestPerfAllocationEffectiveAfterD(t *testing.T) {
+	perfOnly(t)
+	if got := allocationEffectiveAfterD(t); got > 100*time.Millisecond {
+		t.Errorf("allocation counted after D: delivered after %s, budget 100ms", got)
+	}
+}
+
+// allocationEffectiveAfterD checks the allocation is ignored before D (last tier, never early) and counted
+// after it (served well before the last tier's 2 s); it returns the post-D delivery time.
+func allocationEffectiveAfterD(t *testing.T) time.Duration {
+	t.Helper()
 	const d = 2500 * time.Millisecond
 	r := startRelay(t, "", withDelay(d))
 	prov := registerProvider(t, r, 60, []tierSpec{{"1000", "0"}, {"0", "2"}}) // top: 0, else 2 s
@@ -73,7 +87,7 @@ func TestAllocationEffectiveAfterD(t *testing.T) {
 	early := prov.signal(60, 1)
 	t0 := time.Now()
 	pub.mustPublish(early)
-	if !cl.waitFor(early.ID, 5*time.Second) {
+	if !cl.waitFor(early.ID, harnessWait) {
 		t.Fatal("no delivery")
 	}
 	at, _ := cl.firstArrival(early.ID)
@@ -85,13 +99,16 @@ func TestAllocationEffectiveAfterD(t *testing.T) {
 	late := prov.signal(60, 2)
 	t1 := time.Now()
 	pub.mustPublish(late)
-	if !cl.waitFor(late.ID, 5*time.Second) {
+	if !cl.waitFor(late.ID, harnessWait) {
 		t.Fatal("no delivery after D")
 	}
 	at, _ = cl.firstArrival(late.ID)
-	if got := at.Sub(t1); got > 100*time.Millisecond {
-		t.Errorf("allocation not counted after D: delivered after %s, want about 0", got)
+	got := at.Sub(t1)
+	// the last tier would take 2 s: anything well under it proves the allocation counted
+	if got > 1500*time.Millisecond {
+		t.Errorf("allocation not counted after D: delivered after %s, want about 0 (last tier is 2s)", got)
 	}
+	return got
 }
 
 // Allocated power, not balance: dropping the allocation to another provider lowers the tier with this one.
@@ -108,14 +125,14 @@ func TestReallocationMovesTier(t *testing.T) {
 
 	first := prov.signal(60, 1)
 	pub.mustPublish(first)
-	if !cl.waitFor(first.ID, time.Second) {
+	if !cl.waitFor(first.ID, harnessWait) {
 		t.Fatal("with 100% allocated the follower should get the signal at once")
 	}
 	pub.mustPublish(f.allocation(2, 0, map[string]uint32{prov.pub: 5000})) // 500 < 1000
 	second := prov.signal(60, 2)
 	t0 := time.Now()
 	pub.mustPublish(second)
-	if !cl.waitFor(second.ID, 4*time.Second) {
+	if !cl.waitFor(second.ID, harnessWait) {
 		t.Fatal("no delivery")
 	}
 	at, _ := cl.firstArrival(second.ID)
