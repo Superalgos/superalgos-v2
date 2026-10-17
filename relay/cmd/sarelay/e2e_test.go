@@ -137,7 +137,7 @@ func start(t *testing.T, dir string, extra string) *proc {
 	if err := p.cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 600; i++ { // 600 x 50 ms = 30 s: only a real failure to start fires
 		if c, err := net.Dial("tcp", relayAddr); err == nil {
 			c.Close()
 			if b, err := os.ReadFile(filepath.Join(dir, "data", "admin.token")); err == nil {
@@ -238,7 +238,7 @@ func (c *conn) publish(t *testing.T, ev *nostr.Event) {
 		if !strings.HasPrefix(r, "true|") {
 			t.Fatalf("publish kind %d refused: %s", ev.Kind, r)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(harnessWait):
 		t.Fatal("no OK for publish")
 	}
 }
@@ -248,7 +248,7 @@ func (c *conn) subscribe(t *testing.T) {
 	c.send("REQ", "live", map[string]any{"kinds": []int{protocol.KindSignal}})
 	select {
 	case <-c.eose:
-	case <-time.After(10 * time.Second):
+	case <-time.After(harnessWait):
 		t.Fatal("no EOSE")
 	}
 }
@@ -339,7 +339,7 @@ func TestBinaryStartsServesAndStopsCleanly(t *testing.T) {
 		if err != nil {
 			t.Errorf("SIGTERM exit: %v\n%s", err, p.stderr.String())
 		}
-	case <-time.After(8 * time.Second):
+	case <-time.After(harnessWait):
 		t.Fatal("relay did not stop on SIGTERM")
 	}
 	for _, line := range strings.Split(strings.TrimSpace(p.stderr.String()), "\n") {
@@ -409,7 +409,7 @@ func killNine(t *testing.T) float64 {
 	p2 := start(t, dir, "")
 	sub := dial(t, p2.relayURL)
 	sub.subscribe(t)
-	deadline := time.Now().Add(8 * time.Second)
+	deadline := time.Now().Add(harnessWait)
 	for time.Now().Before(deadline) {
 		if _, ok := sub.arrival(sig.ID); ok {
 			break
@@ -429,6 +429,11 @@ func killNine(t *testing.T) float64 {
 	}
 	return e
 }
+
+// harnessWait bounds every wait the harness makes for the real process to answer or deliver. It is not a
+// product requirement: a slow shared CI runner under -race can stall for seconds, so 30 s fires only on a
+// real hang. Latency budgets live in the TestPerf tests (SA_PERF=1), never here.
+const harnessWait = 30 * time.Second
 
 func ms(d time.Duration) float64 { return float64(d.Microseconds()) / 1000 }
 
@@ -482,7 +487,19 @@ func binaryLoad300(t *testing.T) float64 {
 		sents = append(sents, sent{ev.ID, at})
 		time.Sleep(40 * time.Millisecond)
 	}
-	time.Sleep(4 * time.Second)
+	// wait for the last signal to reach every subscriber (release delay 2 s), bounded only to catch a hang
+	for end := time.Now().Add(harnessWait); time.Now().Before(end); time.Sleep(50 * time.Millisecond) {
+		all := true
+		for _, c := range cs {
+			if _, ok := c.arrival(sents[nSig-1].id); !ok {
+				all = false
+				break
+			}
+		}
+		if all {
+			break
+		}
+	}
 	rssAfter := p.rssMB()
 	var errs []float64
 	missing := 0

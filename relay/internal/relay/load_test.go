@@ -99,7 +99,19 @@ func load300(t *testing.T) stats {
 		sents = append(sents, sent{at, 120, ev.ID})
 		time.Sleep(40 * time.Millisecond)
 	}
-	time.Sleep(scaledDelay("2", 120) + 2*time.Second)
+	// wait for the last signal to reach every subscriber (slowest tier: 2 s), bounded only to catch a hang
+	for end := time.Now().Add(harnessWait); time.Now().Before(end); time.Sleep(50 * time.Millisecond) {
+		all := true
+		for _, s := range subs {
+			if _, ok := s.cl.firstArrival(sents[nSig-1].id); !ok {
+				all = false
+				break
+			}
+		}
+		if all {
+			break
+		}
+	}
 	var memAfter runtime.MemStats
 	runtime.GC()
 	runtime.ReadMemStats(&memAfter)
