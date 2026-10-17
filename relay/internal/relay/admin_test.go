@@ -55,7 +55,7 @@ func TestMetricsExposePrometheusText(t *testing.T) {
 	c.live(map[string]any{"kinds": []int{protocol.KindSignal}})
 	ev := prov.signal(60, 1)
 	c.mustPublish(ev)
-	c.waitFor(ev.ID, 4*time.Second)
+	c.waitFor(ev.ID, harnessWait)
 	c.publish(signalBy(newActor().sk, nil, 60, 2, time.Now().UnixMilli())) // rejected
 
 	code, body := adminDo(t, "GET", r.AdminURL+"/metrics", r.Token)

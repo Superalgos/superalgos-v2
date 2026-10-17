@@ -76,7 +76,7 @@ func TestSameMillisecondOrder(t *testing.T) {
 
 	last := want[len(want)-1]
 	for _, f := range fs {
-		if !f.cl.waitFor(last, 6*time.Second) {
+		if !f.cl.waitFor(last, harnessWait) {
 			t.Fatalf("%s did not receive the last signal", f.name)
 		}
 	}
@@ -132,7 +132,7 @@ func TestConcurrentBurstSameOrderAcrossTiers(t *testing.T) {
 	wg.Wait()
 	for _, f := range fs {
 		for _, id := range ids {
-			if !f.cl.waitFor(id, 6*time.Second) {
+			if !f.cl.waitFor(id, harnessWait) {
 				t.Fatalf("%s missed a signal of the burst", f.name)
 			}
 		}

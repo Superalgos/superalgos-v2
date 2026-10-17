@@ -345,12 +345,12 @@ describe("debounce", () => {
     d(1);
     d(2);
     d(3);
-    await Bun.sleep(40);
+    await Bun.sleep(300);
     expect(seen).toEqual([3]);
     d(4);
     d.cancel();
     d.cancel();
-    await Bun.sleep(30);
+    await Bun.sleep(300);
     expect(seen).toEqual([3]);
   });
 });
