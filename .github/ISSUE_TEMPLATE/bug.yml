@@ -1,0 +1,48 @@
+name: Bug report
+description: Something does not work as a SEP says it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If your version has `sa report` (SEP-18), run it (add `--signal <id>` for a signal) and paste the file it writes below. Otherwise paste the relevant log lines.
+        Read it first: it is redacted, but you decide what you share. Never paste keys, passphrases or exchange API keys.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. uv run sa demo\n2. ...\n3. ..."
+    validations:
+      required: true
+  - type: input
+    id: signal
+    attributes:
+      label: Signal id (if a signal is involved)
+      placeholder: 64-character event id
+  - type: input
+    id: sep
+    attributes:
+      label: SEP criterion it breaks (if you know it)
+      placeholder: e.g. SEP-3.15
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options: [strategy / backtest, provider bot, follower bot, relay, dashboard, CLI, governance, other]
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: sa report output
+      description: Paste the Markdown file written by `sa report`.
+      render: markdown
+    validations:
+      required: false

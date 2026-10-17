@@ -1,0 +1,40 @@
+name: SEP proposal
+description: Propose a new Superalgos Enhancement Proposal, or a change to an existing one.
+labels: [sep]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A SEP is one feature: why it matters, how it works, and numbered criteria that say when it is done.
+        Discuss the idea here first. When it is shaped, open a pull request that adds or edits a file in `seps/`.
+  - type: input
+    id: existing
+    attributes:
+      label: Existing SEP (if this changes one)
+      placeholder: e.g. SEP-17
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: The problem, who has it, and what happens today.
+    validations:
+      required: true
+  - type: textarea
+    id: design
+    attributes:
+      label: Proposed design
+      description: How it would work. Keep to what is needed; name the components it touches.
+    validations:
+      required: true
+  - type: textarea
+    id: criteria
+    attributes:
+      label: Criteria
+      description: Testable statements of done, each with the check that proves it. Include "Anti:" criteria for things that must never happen.
+      placeholder: "- Criterion: ...\n  Probe: ... Pass: ..."
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
