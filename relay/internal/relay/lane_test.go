@@ -36,7 +36,7 @@ func TestLaneFiresInReceiptOrder(t *testing.T) {
 		go func() { defer wg.Done(); e.drain(l) }()
 	}
 	wg.Wait()
-	deadline := time.Now().Add(2 * time.Second)
+	deadline := time.Now().Add(laneWait)
 	for time.Now().Before(deadline) {
 		mu.Lock()
 		n := len(order)
@@ -74,7 +74,11 @@ func TestLaneHoldsFutureItems(t *testing.T) {
 		if got.Before(at) {
 			t.Fatalf("fired %s early", at.Sub(got))
 		}
-	case <-time.After(2 * time.Second):
+	case <-time.After(laneWait):
 		t.Fatal("the timer armed by drain never fired the item")
 	}
 }
+
+// laneWait bounds how long these tests wait for a timer or goroutine; it is not a product requirement, so
+// it is generous enough for a loaded CI runner and fires only on a real hang.
+const laneWait = 30 * time.Second

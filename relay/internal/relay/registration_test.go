@@ -135,7 +135,14 @@ func TestOnlyRegisteredProvidersPublishWithBoundTimeframe(t *testing.T) {
 			t.Fatalf("stranger rejection reason %q", why)
 		}
 	}
-	time.Sleep(scaledDelay("2", 120) + 300*time.Millisecond) // past the slowest tier: everything stored is now visible to all
+	// past the slowest tier everything stored is visible to all: wait for the releases (a loaded runner
+	// can lag), then assert on the settled state
+	time.Sleep(scaledDelay("2", 120))
+	for end := time.Now().Add(harnessWait); time.Now().Before(end); time.Sleep(250 * time.Millisecond) { // under the 5 req/s zero-power rate
+		if n, _ := reader.count(map[string]any{"kinds": []int{protocol.KindSignal}}); n >= 2 {
+			break
+		}
+	}
 	ids, _ := reader.query(map[string]any{"kinds": []int{protocol.KindSignal}})
 	n, _ := reader.count(map[string]any{"kinds": []int{protocol.KindSignal}})
 	sids, _ := reader.query(map[string]any{"authors": []string{stranger.pub}})

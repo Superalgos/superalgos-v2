@@ -35,7 +35,8 @@ uv run sa demo           # the whole network locally, dashboard on 127.0.0.1:878
 - Performance tests (latency budgets that depend on machine speed: relay release error, the 200-node designer) are
   local only: `make perf` (sets `SA_PERF=1`). Run it before a PR that touches relay delivery or the designer. CI never
   sets `SA_PERF`, so those tests skip there; their correctness halves (nothing missing, nothing early, nodes render)
-  stay in the normal suite.
+  stay in the normal suite. Test harness waits (for an OK, a delivery, a release) are a flat 30 s so they fire only on a
+  real hang; never size one to the expected latency.
 - Python always runs through `uv run` or the project `.venv`. Never a global interpreter, never `pip install`; add
   dependencies with `uv add`.
 - Never skip or bypass the pre-commit hook. A change is ready when `make check`, `make -C relay check` and

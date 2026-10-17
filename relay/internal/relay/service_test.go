@@ -34,7 +34,7 @@ func TestZeroPowerClientsReceiveEverything(t *testing.T) {
 	}
 	for name, c := range map[string]*client{"anonymous": anon, "authenticated, zero SA": authed} {
 		for i, id := range ids {
-			if !c.waitFor(id, 5*time.Second) {
+			if !c.waitFor(id, harnessWait) {
 				t.Fatalf("%s client missed signal %d/%d", name, i+1, n)
 			}
 			at, _ := c.firstArrival(id)
@@ -84,7 +84,7 @@ func TestZeroPowerOverRateIsThrottledNotDisconnected(t *testing.T) {
 					throttled++
 					got++
 				}
-			case <-time.After(5 * time.Second):
+			case <-time.After(harnessWait):
 				t.Fatalf("no reply to flooded requests after %d/%d", got, n)
 			}
 		}
@@ -125,7 +125,21 @@ func TestZeroPowerOverRateIsThrottledNotDisconnected(t *testing.T) {
 
 // SEP-3.41: pending releases survive a restart and fire at their original release times; releases that
 // came due during the downtime are visible on the first query after restart; rules and allocations persist.
-func TestPendingReleasesSurviveRestart(t *testing.T) {
+func TestPendingReleasesSurviveRestart(t *testing.T) { pendingReleasesSurviveRestart(t) }
+
+// TestPerfPendingReleasesSurviveRestart is the machine-speed half: each restored release lands within
+// 150 ms of its original schedule. Local only (SA_PERF=1, `make perf`).
+func TestPerfPendingReleasesSurviveRestart(t *testing.T) {
+	perfOnly(t)
+	if worst := pendingReleasesSurviveRestart(t); worst > 150 {
+		t.Errorf("restored release %.1f ms after its schedule, budget 150 ms", worst)
+	}
+}
+
+// pendingReleasesSurviveRestart checks nothing is lost or early across the restart (releases land at their
+// original time, not restart + full delay) and returns the worst lateness in ms.
+func pendingReleasesSurviveRestart(t *testing.T) float64 {
+	t.Helper()
 	dir := t.TempDir()
 	r1 := startRelay(t, dir)
 	prov := registerProvider(t, r1, 300, []tierSpec{{"1000", "0"}, {"0", "1"}}) // anyone: 5 s at scale 1/60
@@ -172,20 +186,23 @@ func TestPendingReleasesSurviveRestart(t *testing.T) {
 	}
 	var errs []float64
 	for _, s := range sigs {
-		if !anon.waitFor(s.id, 8*time.Second) {
+		if !anon.waitFor(s.id, harnessWait) {
 			t.Fatalf("pending release lost after restart")
 		}
 		at, _ := anon.firstArrival(s.id)
 		want := s.at.Add(scaledDelay("1", 300))
 		e := ms(at.Sub(want))
 		errs = append(errs, e)
-		if e < -10 || e > 150 { // sentAt is read after the OK round trip, so a few ms "early" is the test clock
+		// sentAt is read after the OK round trip, so a few ms "early" is the test clock. A release re-armed
+		// from the restart instead of the original time would be 1 s+ late.
+		if e < -10 || e > 1000 {
 			t.Errorf("released %.1f ms from schedule (negative = early)", e)
 		}
 	}
 	st := summarize(errs)
 	t.Logf("restart: 3/3 pending releases delivered at original times, error ms p50 %.1f max %.1f; downtime-lapsed signal visible; allocation and rules restored", st.p50, st.max)
 	_ = r2
+	return st.max
 }
 
 // Concurrent: many publishers and subscribers at once must not race or lose events.
@@ -216,7 +233,7 @@ func TestConcurrentPublishAndSubscribe(t *testing.T) {
 	close(ids)
 	for id := range ids {
 		for _, c := range subs {
-			if !c.waitFor(id, 5*time.Second) {
+			if !c.waitFor(id, harnessWait) {
 				t.Fatalf("subscriber missed %s", id[:8])
 			}
 		}

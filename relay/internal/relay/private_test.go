@@ -95,7 +95,7 @@ func TestPrivateProviderDeliversCiphertextToEntitledOnly(t *testing.T) {
 		a        actor
 		mine, no *nostr.Event
 	}{"A": {cA, fA, toA, toB}, "B": {cB, fB, toB, toA}} {
-		if !tc.c.waitFor(tc.mine.ID, 2*time.Second) {
+		if !tc.c.waitFor(tc.mine.ID, harnessWait) {
 			t.Fatalf("%s never received its private signal", name)
 		}
 		if _, got := tc.c.firstArrival(tc.no.ID); got {
@@ -121,7 +121,7 @@ func TestPrivateProviderDeliversCiphertextToEntitledOnly(t *testing.T) {
 		}
 	}
 	// the provider's own identity can read what it published (for archiving)
-	if !cOwner.waitFor(toA.ID, time.Second) || !cOwner.waitFor(toB.ID, time.Second) {
+	if !cOwner.waitFor(toA.ID, harnessWait) || !cOwner.waitFor(toB.ID, harnessWait) {
 		t.Error("provider's own identity does not see its events")
 	}
 
@@ -219,10 +219,10 @@ func TestPrivateCommitmentVisibility(t *testing.T) {
 	ev := prov.commitment(1, nil)
 	t0 := time.Now()
 	pubc.mustPublish(ev)
-	if !cf.waitFor(ev.ID, 2*time.Second) {
+	if !cf.waitFor(ev.ID, harnessWait) {
 		t.Fatal("entitled follower missed the commitment")
 	}
-	if !co.waitFor(ev.ID, 4*time.Second) {
+	if !co.waitFor(ev.ID, harnessWait) {
 		t.Fatal("public never sees the commitment")
 	}
 	at, _ := co.firstArrival(ev.ID)

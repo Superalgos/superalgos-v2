@@ -41,7 +41,8 @@ describe("designer backtest link", () => {
       await act(async () => {
         btn(/Run backtest/)?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
       });
-      await settle(1600);
+      // poll for the finished job instead of a fixed wait (job takes 30 ms of mock time; a loaded runner can be slower)
+      for (let i = 0; i < 100 && ![...host.querySelectorAll("a")].some((a) => a.textContent === "Open on chart"); i++) await settle(100);
       const link = [...host.querySelectorAll("a")].find((a) => a.textContent === "Open on chart");
       expect(link).toBeDefined();
       // on its own line: a link wrapped inside running text has a bounding box whose centre is other text, so a click there misses it
