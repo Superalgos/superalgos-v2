@@ -1,0 +1,49 @@
+# Dependency updates (SEP-1.18). Every dependency is pinned: uv.lock, web/bun.lock and relay/go.sum carry hashes, images
+# are pinned by digest and actions by commit SHA. Dependabot proposes the moves; CI and a reviewer accept them.
+# The cooldown keeps a release out until it is 7 days old, so a hijacked or broken release is usually pulled first.
+# nautilus_trader is held below 1.232 in packages/sa-engine: its 2.0.0 PR is the trigger for the migration (SEP-1.19).
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      python-minor:
+        update-types: [minor, patch]
+
+  - package-ecosystem: bun
+    directory: /web
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      web-minor:
+        update-types: [minor, patch]
+
+  - package-ecosystem: gomod
+    directory: /relay
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      go-minor:
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directory: /deploy
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
