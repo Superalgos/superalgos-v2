@@ -34,7 +34,7 @@ test:
 # Pre-commit speed: no coverage, stop at first failure, skip slow tests.
 test-fast:
 	@for d in $(PYTHON_DIRS); do \
-		$(UV) run pytest $$d -x -q -m "not slow and not online" -p no:cacheprovider || exit 1; \
+		$(UV) run pytest $$d -x -q -m "not slow and not online" -p no:cacheprovider --no-cov || exit 1; \
 	done
 
 check: lint typecheck test
