@@ -13,6 +13,11 @@ updates:
     groups:
       python-minor:
         update-types: [minor, patch]
+    ignore:
+      # NautilusTrader 1.231's BarDataWrangler fails on pandas 3 ("buffer source array is read-only"; packages/sa-engine
+      # pins pandas<3). Lift together with the NautilusTrader 2.x move (SEP-1.19).
+      - dependency-name: pandas
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: bun
     directory: /web
@@ -40,6 +45,11 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    ignore:
+      # The image's Python follows requires-python (<3.14 in every package), not the other way round. CI does not build
+      # deploy/Dockerfile yet (SEP-1.14), so a green check on this bump would prove nothing. Lift with the bound.
+      - dependency-name: python
+        update-types: ["version-update:semver-minor"]
 
   - package-ecosystem: github-actions
     directory: /
@@ -47,3 +57,7 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    groups:
+      # Every action is pinned on adjacent lines of ci.yml: separate PRs conflict with each other after the first merge.
+      actions:
+        patterns: ["*"]
