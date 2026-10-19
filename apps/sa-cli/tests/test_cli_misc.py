@@ -106,8 +106,10 @@ def signed(demo: Cli, **kw: Any) -> tuple[str, str]:
         "strategy_id": "s", "seq": 1, "prev": None, "instrument": "BINANCE:BTCUSDT", "side": "buy", "action": "open",
         "size_fraction": 0.5, "order_type": "market", "timeframe": 3600, "created_ms": int(time.time() * 1000),
     }  # fmt: skip
+    merged = {**base, **kw}
+    merged.setdefault("bar_open_ms", merged["created_ms"] - merged["timeframe"] * 1000)
     return build_signal_event(
-        device, Signal.model_validate({**base, **kw}), delegation
+        device, Signal.model_validate(merged), delegation
     ).model_dump_json(), device.pubkey_hex
 
 

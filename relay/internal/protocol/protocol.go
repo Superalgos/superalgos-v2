@@ -406,8 +406,10 @@ type Signal struct {
 	V            int         `json:"v"`
 	Timeframe    json.Number `json:"timeframe"`
 	CreatedMS    json.Number `json:"created_ms"`
+	BarOpenMS    json.Number `json:"bar_open_ms"`
 	TimeframeSec int64       `json:"-"`
 	CreatedAt    time.Time   `json:"-"`
+	BarOpenAt    time.Time   `json:"-"`
 
 	StrategyID   json.RawMessage `json:"strategy_id"`
 	Seq          json.RawMessage `json:"seq"`
@@ -421,11 +423,18 @@ type Signal struct {
 	StopPrice    json.RawMessage `json:"stop_price"`
 }
 
+// SignalVersion is the only signal content version a relay accepts: v2 names the bar the decision was made
+// on (`bar_open_ms`, SEP-3.18). The relay requires the field; whether it is the right bar is the follower's check.
+const SignalVersion = 2
+
 // ParsePublicSignal reads the relay-checked fields of a plaintext signal.
 func ParsePublicSignal(content string) (*Signal, error) {
 	var s Signal
 	if err := decodeStrict(content, &s); err != nil {
 		return nil, fmt.Errorf("signal content is not a JSON object: %v", err)
+	}
+	if s.V != SignalVersion {
+		return nil, fmt.Errorf("signal v is %d, this relay accepts v%d only (v2 adds bar_open_ms, SEP-3.18); re-sign with a current provider", s.V, SignalVersion)
 	}
 	tf, err := parseUint(s.Timeframe, "timeframe")
 	if err != nil {
@@ -435,8 +444,13 @@ func ParsePublicSignal(content string) (*Signal, error) {
 	if err != nil {
 		return nil, err
 	}
+	bar, err := parseUint(s.BarOpenMS, "bar_open_ms")
+	if err != nil {
+		return nil, err
+	}
 	s.TimeframeSec = int64(tf)
 	s.CreatedAt = time.UnixMilli(int64(ms))
+	s.BarOpenAt = time.UnixMilli(int64(bar))
 	return &s, nil
 }
 

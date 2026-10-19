@@ -42,11 +42,12 @@ Python never imports Go or TS; they talk over Nostr (WebSocket) and HTTP only.
 - **Tag names:** custom tags never reuse a NIP-reserved name. The delegation tag is `["sa-delegation", evm_address, expires_at, sig]`, where the signature is EIP-191 over `sa-delegation:{nostr_pubkey_hex}:{expires_at}`. `sa identity --demo --days` caps a delegation at 90 days; `sa revoke` publishes a kind 9334 for a lost key.
 - **Signal chain:** each signal content carries `seq` (starting at 1, per provider strategy) and `prev` (the previous signal's event id, or null). This makes gaps detectable (SEP-3.15).
 - **Signal content fields:**
-  - `v`, `strategy_id`, `seq`, `prev`
+  - `v` (`2`; a v1 signal is refused by the closed schema in `sa_core` and by the relay), `strategy_id`, `seq`, `prev`
   - `instrument` (`BINANCE:BTCUSDT`)
   - `side` (`buy`/`sell`), `action` (`open`/`close`/`adjust`)
   - `size_fraction` (0–1], `order_type` (`market`/`limit`/`stop`; `stop` requires `stop_price`), `limit_price?`, `stop_price?`
   - `timeframe` (seconds), `created_ms`
+  - `bar_open_ms`: open time (ms) of the bar the decision was made on. It is part of the signed content and so of a private signal's commitment digest (SEP-3.28). With `close = bar_open_ms + timeframe x 1000` and the timeframe bound in the provider's rule set, `sa_core.signals.check_bar` rejects a signal whose bar had not closed by `created_ms + skew_s` ("bar not closed when the signal was created") or whose bar closed a whole timeframe plus `bar_grace_s` or more before `created_ms` (a newer bar had already closed). Bars are not required to be epoch-aligned (weekly bars are Monday-aligned). `created_ms` is signed and the relay pins it to its own clock, so the check needs no clock of the follower's; lateness added by a tier delay stays with the follower's age check. A replay maps the bar close onto the replay clock exactly as it maps `created_ms` (SEP-3.18). The commitment (kind 9318) content stays v1.
 
 ## Strategy documents (`packages/sa-engine`, schema version 2)
 

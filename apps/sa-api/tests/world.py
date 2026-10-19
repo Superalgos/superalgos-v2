@@ -88,6 +88,7 @@ def signal(
         {
             "strategy_id": strategy, "seq": seq, "prev": prev, "instrument": INSTRUMENT, "side": side,
             "action": action, "size_fraction": size, "order_type": "market", "timeframe": 3600, "created_ms": at_ms,
+            "bar_open_ms": at_ms - 3_600_000,
         }
     )  # fmt: skip
 

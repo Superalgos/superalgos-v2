@@ -13,7 +13,7 @@ import (
 
 // stopSignal builds an `action: close` stop signal with the given created_ms (same content shape as signalBy).
 func stopSignal(a actor, tf int64, seq int, createdMS int64, kind string) *nostr.Event {
-	content := fmt.Sprintf(`{"v":1,"strategy_id":"s1","seq":%d,"prev":null,"instrument":"BINANCE:BTCUSDT","side":"sell","action":"%s","size_fraction":1,"order_type":"stop","stop_price":59000,"timeframe":%d,"created_ms":%d}`, seq, kind, tf, createdMS)
+	content := fmt.Sprintf(`{"v":2,"strategy_id":"s1","seq":%d,"prev":null,"instrument":"BINANCE:BTCUSDT","side":"sell","action":"%s","size_fraction":1,"order_type":"stop","stop_price":59000,"timeframe":%d,"created_ms":%d,"bar_open_ms":%d}`, seq, kind, tf, createdMS, createdMS-tf*1000)
 	ev := &nostr.Event{PubKey: a.pub, CreatedAt: nostr.Now(), Kind: protocol.KindSignal, Tags: nostr.Tags{a.delegation(time.Now().Add(time.Hour).Unix())}, Content: content}
 	_ = ev.Sign(a.sk)
 	return ev

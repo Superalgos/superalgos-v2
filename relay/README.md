@@ -115,7 +115,7 @@ Python sa-core (`testdata/pyvectors.json`, regenerate with `testdata/gen_pyvecto
 |---|---|---|
 | 37318 rule set (tags `d` = provider, `sa-delegation`; signer = provider) | `{"v":1,"provider":hex,"sa_address":"0x..","timeframe":seconds,"tiers":[{"min_power":int,"delay_fraction":0.1},...],"sig":"0x.."}` or `"private":{"min_power":int}` instead of `tiers` | `sa-ruleset:{provider}:{timeframe}:{min@delay,...}` ascending by min_power, delay `%.4f`; private: `private@{min}` |
 | 9332 allocation | `{"v":1,"address":"0x..","nonce":n,"governance":bps,"providers":{pubkey:bps>=1},"sig":"0x.."}` | `sa-allocation:{address}:{nonce}:{governance}:{pk}={bps},...` (sorted by pubkey; empty list leaves the last field empty) |
-| 9317 public signal | JSON with at least `timeframe` (integer seconds) and `created_ms`; event `created_at` near now | none: device key + valid `sa-delegation` from the provider's SA address |
+| 9317 public signal | JSON with `v: 2` and at least `timeframe` (integer seconds), `created_ms` and `bar_open_ms` (SEP-3.18; the relay requires the field, followers check it); event `created_at` near now | none: device key + valid `sa-delegation` from the provider's SA address |
 | 9317 private signal | NIP-44 v2 ciphertext, exactly one `["p", recipient_pubkey]` tag (one event per recipient) | none |
 | 9318 commitment | `{"v":1,"strategy_id","seq","prev","digest"}` | none |
 

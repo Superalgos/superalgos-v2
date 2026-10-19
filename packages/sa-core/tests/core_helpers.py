@@ -70,6 +70,7 @@ class Provider:
                 "stop_price": stop_price,
                 "timeframe": timeframe,
                 "created_ms": at_ms,
+                "bar_open_ms": at_ms - timeframe * 1000,
             }
         )
 

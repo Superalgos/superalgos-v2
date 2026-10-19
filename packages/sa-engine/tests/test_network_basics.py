@@ -126,6 +126,7 @@ def _entry(ident: Identity, seq: int, prev: str | None, kind_text: str = "x") ->
     sig = Signal(
         strategy_id="s", seq=seq, prev=prev, instrument="BINANCE:BTCUSDT", side="buy", action="open",
         size_fraction=0.5, order_type="market", timeframe=60, created_ms=1_700_000_000_000 + seq,
+        bar_open_ms=1_700_000_000_000 + seq - 60_000,
     )  # fmt: skip
     ev = build_signal_event(ident.device, sig, ident.delegation)
     return JournalEntry(event=ev, strategy_id="s", seq=seq, ref=ev.id, run="r1", intent_index=seq - 1)

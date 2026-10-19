@@ -180,18 +180,30 @@ class ProviderBot:
         intent: OrderIntent,
         *,
         now_ms: int | None = None,
+        bar_close_ms: int | None = None,
         recipients: Sequence[Entitled] | None = None,
         run: str | None = None,
         intent_index: int | None = None,
     ) -> list[NostrEvent]:
         """Sign and journal the events for one intent. Raises ``ProviderError``; the caller must not
-        let the order proceed when it does. Does not touch the network."""
+        let the order proceed when it does. Does not touch the network.
+
+        ``bar_close_ms`` is the close of the bar the decision was made on, on the clock ``created_ms`` is on
+        (default: the intent's own ``ts``, a live bar close). The signal names that bar by its open time,
+        ``bar_close_ms - timeframe`` (SEP-3.18); a replay passes the close mapped onto its wall clock."""
         if intent.timeframe != self.rules.timeframe:
             raise ProviderError(
                 f"the strategy emits timeframe {intent.timeframe}s but the registered rule set binds "
                 f"{self.rules.timeframe}s (SEP-3.40); register again with the strategy's timeframe"
             )
         created_ms = int(self.clock() * 1000) if now_ms is None else now_ms
+        close_ms = intent.ts if bar_close_ms is None else bar_close_ms
+        bar_open_ms = close_ms - self.rules.timeframe * 1000
+        if bar_open_ms < 0:
+            raise ProviderError(
+                f"intent bar closes at {close_ms} ms, before one {self.rules.timeframe}s bar has elapsed since "
+                "the epoch; the intent's ts must be the close time of the bar it was decided on"
+            )
         with self._lock:
             head = self.store.head(self.strategy_id)
             seq, prev = (1, None) if head is None else (head.seq + 1, head.ref)
@@ -209,6 +221,7 @@ class ProviderBot:
                     stop_price=intent.stop_price,
                     timeframe=self.rules.timeframe,
                     created_ms=created_ms,
+                    bar_open_ms=bar_open_ms,
                 )
             except ValueError as exc:
                 raise ProviderError(f"intent {intent!r} is not a valid signal: {exc}") from exc
@@ -285,7 +298,15 @@ class ProviderBot:
             intent = intents[i]
             await self._sleep_until(clock.to_wall(intent.ts))
             recipients = await self.refresh_recipients() if self.rules.private is not None else None
-            self.enqueue(self.build_events(intent, recipients=recipients, run=run_id, intent_index=i))
+            self.enqueue(
+                self.build_events(
+                    intent,
+                    bar_close_ms=clock.to_wall(intent.ts),
+                    recipients=recipients,
+                    run=run_id,
+                    intent_index=i,
+                )
+            )
         return effective
 
     async def _sleep_until(self, wall_ms: int) -> None:

@@ -140,7 +140,7 @@ def follow(args: argparse.Namespace, home: Home) -> int:
     bot = FollowerBot(
         device=device, delegation=delegation, relay_url=args.relay or "ws://unused", providers=providers, executor=executor,
         ledger=ledger, verifiers=load_tsa_settings(args.tsa_config).verifiers(), allocation=allocation, allow_gaps=args.allow_gaps,
-        max_age_s=args.max_age, reorder_wait_s=args.reorder_wait,
+        max_age_s=args.max_age, bar_grace_s=args.bar_grace, reorder_wait_s=args.reorder_wait,
     )  # fmt: skip
     try:
         try:

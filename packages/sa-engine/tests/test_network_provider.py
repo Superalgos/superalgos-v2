@@ -14,7 +14,7 @@ from sa_core.governance import proof_from_attestation
 from sa_core.keys import DeviceKey, SAKey
 from sa_core.models import ANCHOR_KIND, COMMITMENT_KIND, RULESET_KIND, SIGNAL_KIND, ProviderRuleSet
 from sa_core.power import validate_ruleset_event
-from sa_core.signals import check_reveal, open_private_signal, verify_commitment_event, verify_signal_event
+from sa_core.signals import check_bar, check_reveal, open_private_signal, verify_commitment_event, verify_signal_event
 
 from sa_engine.network.entitlement import Entitled
 from sa_engine.network.journal import ProviderStore
@@ -69,7 +69,7 @@ async def test_registers_then_publishes_a_verifiable_chain(relay: FakeRelay, tmp
     async with bot(ident, relay, tmp_path) as b:
         await b.publish_ruleset()
         for i in range(3):
-            b.enqueue(b.build_events(intent(ts=i)))
+            b.enqueue(b.build_events(intent(ts=1_700_000_000_000 + i)))
         await settle(b)
     ruleset = next(e for e in relay.events.values() if e.kind == RULESET_KIND)
     assert validate_ruleset_event(ruleset, int(time.time())).provider == ident.pubkey
@@ -223,7 +223,7 @@ async def test_private_mode_commits_publicly_and_encrypts_for_each_entitled_foll
         ident, relay, tmp_path, rules=ident.private_rules(), entitlements=Fixed(who), stamper=FakeStamper()
     ) as b:
         for i in range(2):
-            b.enqueue(b.build_events(intent(ts=i)))
+            b.enqueue(b.build_events(intent(ts=1_700_000_000_000 + i)))
         await settle(b)
         full, bare = b.export(reveal=True), b.export(reveal=False)
     commits = sorted((e for e in relay.events.values() if e.kind == COMMITMENT_KIND), key=lambda e: e.created_at)
@@ -338,6 +338,9 @@ async def test_replay_publishes_on_the_replay_clock_and_resumes(relay: FakeRelay
         verify_signal_event(e, int(time.time())).signal.seq for e in relay.events.values() if e.kind == SIGNAL_KIND
     )
     assert seqs == [1, 2, 3, 4]
+    for e in relay.events.values():
+        if e.kind == SIGNAL_KIND:  # SEP-3.18: replayed signals name their bar on the wall clock, like created_ms
+            check_bar(verify_signal_event(e, int(time.time())).signal, 3600, 10_000, 10_000)
     assert replay_run_id("{}", spec) == run != replay_run_id("{x}", spec)
 
 
@@ -358,3 +361,38 @@ async def test_private_signals_are_not_sent_to_the_wrong_key(relay: FakeRelay, t
 def test_throwaway_keys_only() -> None:
     assert SAKey.generate().address != SAKey.generate().address
     assert DeviceKey.generate().pubkey_hex != DeviceKey.generate().pubkey_hex
+
+
+def _offline_bot(tmp: Path, ident: Identity) -> ProviderBot:
+    return ProviderBot(
+        device=ident.device, delegation=ident.delegation, rules=ident.rules(), strategy_id="strat",
+        store=ProviderStore(tmp / "state"), relay_url="ws://unused",
+    )  # fmt: skip
+
+
+def test_sep_3_18_a_signal_names_the_bar_its_intent_was_decided_on(tmp_path: Path) -> None:
+    ident = Identity()
+    b = _offline_bot(tmp_path, ident)
+    close = 1_700_000_000_000
+    (ev,) = b.build_events(intent(ts=close), now_ms=close + 250)
+    signal = verify_signal_event(ev, close // 1000 + 1).signal
+    assert signal.v == 2 and signal.created_ms == close + 250
+    assert signal.bar_open_ms == close - 3_600_000  # the intent's ts is the bar close; the signal names the open
+    check_bar(signal, 3600, 10_000, 10_000)
+
+
+def test_sep_3_18_a_replayed_bar_close_is_mapped_like_created_ms(tmp_path: Path) -> None:
+    ident = Identity()
+    b = _offline_bot(tmp_path, ident)
+    wall_close = 1_800_000_000_000  # the intent's market-time close, mapped onto the wall clock
+    (ev,) = b.build_events(intent(ts=1_700_000_000_000), now_ms=wall_close, bar_close_ms=wall_close)
+    signal = verify_signal_event(ev, wall_close // 1000 + 1).signal
+    assert signal.bar_open_ms == wall_close - 3_600_000
+    check_bar(signal, 3600, 0, 0)  # created exactly at the close: a replayed signal passes the follower's check
+
+
+def test_sep_3_18_an_intent_with_no_room_for_its_bar_is_refused_with_the_value(tmp_path: Path) -> None:
+    b = _offline_bot(tmp_path, Identity())
+    with pytest.raises(ProviderError, match=r"closes at 1000 ms"):
+        b.build_events(intent(ts=1000))
+    assert b.store.head("strat") is None

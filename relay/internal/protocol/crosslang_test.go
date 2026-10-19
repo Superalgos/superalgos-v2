@@ -105,7 +105,7 @@ func TestPythonSignalsCommitmentsAndGovernance(t *testing.T) {
 	v := loadVectors(t)
 	sig := v.Events["signal_public"]
 	s, err := ParsePublicSignal(sig.Content)
-	if err != nil || s.TimeframeSec != 3600 || s.CreatedAt.Unix() != 1_700_000_000 {
+	if err != nil || s.TimeframeSec != 3600 || s.CreatedAt.Unix() != 1_700_000_000 || s.BarOpenAt.Unix() != 1_700_000_000-3600 {
 		t.Fatalf("public signal: %+v %v", s, err)
 	}
 	if addr, _, err := evmsig.Delegation(sig.Tags, sig.PubKey, 1_700_000_000); err != nil || addr != v.Keys["sa_public_address"] {

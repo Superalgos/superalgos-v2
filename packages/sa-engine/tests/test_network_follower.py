@@ -35,7 +35,9 @@ def signal(p: Identity, seq: int, prev: str | None, *, at_ms: int = NOW_MS, **kw
         "strategy_id": "strat", "seq": seq, "prev": prev, "instrument": "BINANCE:BTCUSDT", "side": "buy",
         "action": "open", "size_fraction": 0.5, "order_type": "market", "timeframe": 3600, "created_ms": at_ms,
     }  # fmt: skip
-    return Signal.model_validate({**base, **kw})
+    merged = {**base, **kw}
+    merged.setdefault("bar_open_ms", merged["created_ms"] - merged["timeframe"] * 1000)
+    return Signal.model_validate(merged)
 
 
 def event(p: Identity, seq: int, prev: str | None, **kw: Any) -> NostrEvent:
@@ -145,6 +147,75 @@ async def test_stale_and_future_signals_are_rejected(tmp_path: Path) -> None:
     lenient = follower(tmp_path / "x", p, max_age_s=10 * 3600)
     ok = await lenient.ingest(event(p, 1, None, at_ms=NOW_MS - 4 * 3600 * 1000))
     assert ok and ok.status == "accepted"
+
+
+class _SpyExecutor(SimulatedPaperExecutor):
+    """Counts every intent that reaches the executor."""
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        self.intents = 0
+
+    async def execute(self, ref: str, intent: Any, now_ms: int) -> Any:
+        self.intents += 1
+        return await super().execute(ref, intent, now_ms)
+
+
+def _spy_follower(tmp: Path, p: Identity, **kw: Any) -> tuple[FollowerBot, _SpyExecutor]:
+    bot = follower(tmp, p, **kw)
+    spy = _SpyExecutor("BINANCE:BTCUSDT", 10_000.0, flat_feed(50_000.0, NOW_MS - 1000))
+    bot.executor = spy
+    return bot, spy
+
+
+TF_MS = 3600 * 1000
+
+
+@pytest.mark.parametrize(
+    ("bar_open_ms", "accepted", "why"),
+    [
+        (NOW_MS - TF_MS, True, ""),  # just closed
+        (NOW_MS - TF_MS + 10_000, True, ""),  # closes exactly at created_ms + skew
+        (NOW_MS - TF_MS + 10_001, False, "bar: bar not closed when the signal was created"),
+        (NOW_MS - 2 * TF_MS - 9_999, True, ""),  # one bar and 9.999 s behind
+        (NOW_MS - 2 * TF_MS - 10_000, False, "bar: decided on bar"),
+        (NOW_MS - 5 * TF_MS, False, "bar: decided on bar"),
+        (NOW_MS, False, "bar: bar not closed"),
+    ],
+)
+async def test_sep_3_18_the_bar_must_be_the_latest_closed_bar_at_creation(
+    tmp_path: Path, bar_open_ms: int, accepted: bool, why: str
+) -> None:
+    p = Identity()
+    bot, spy = _spy_follower(tmp_path, p)
+    row = await bot.ingest(event(p, 1, None, bar_open_ms=bar_open_ms))
+    assert row is not None
+    if accepted:
+        assert row.status == "accepted" and spy.intents == 1
+    else:
+        assert row.status == "rejected" and row.reason.startswith(why) and not row.placed
+        assert spy.intents == 0  # Anti: a signal decided on the wrong bar never reaches the executor
+        assert bot.executor.snapshot(NOW_MS)["fills"] == 0
+
+
+async def test_sep_3_18_the_tolerances_are_the_followers_to_set(tmp_path: Path) -> None:
+    p = Identity()
+    late = event(p, 1, None, bar_open_ms=NOW_MS - 2 * TF_MS - 20_000)
+    strict, _ = _spy_follower(tmp_path / "a", p)
+    row = await strict.ingest(late)
+    assert row is not None and row.status == "rejected"
+    lenient, spy = _spy_follower(tmp_path / "b", p, bar_grace_s=30.0)
+    row = await lenient.ingest(late)
+    assert row is not None and row.status == "accepted" and spy.intents == 1
+
+
+async def test_sep_3_18_a_private_signal_on_the_wrong_bar_is_rejected(tmp_path: Path) -> None:
+    p, me = Identity(), Identity()
+    bot, spy = _spy_follower(tmp_path, p, rules=p.private_rules(), me=me)
+    sig = signal(p, 1, None, bar_open_ms=NOW_MS - 5 * TF_MS)
+    row = await bot.ingest(build_private_signal_event(p.device, sig, p.delegation, me.pubkey))
+    assert row is not None and row.status == "rejected" and row.reason.startswith("bar:")
+    assert spy.intents == 0
 
 
 async def test_chain_gap_fork_and_replay(tmp_path: Path) -> None:

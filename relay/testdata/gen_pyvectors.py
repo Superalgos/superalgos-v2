@@ -64,6 +64,7 @@ sig = Signal(
     order_type="market",
     timeframe=3600,
     created_ms=T0 * 1000,
+    bar_open_ms=T0 * 1000 - 3600 * 1000,
 )
 gov = sign_gov_delegation(sa_fol, 3, {sa_other.address: 2500})
 vote = Vote(proposal="ab" * 32, option=1, nonce=0)
