@@ -369,6 +369,46 @@ def test_my_signals_of_a_wallet_session_for_another_address_are_empty(
     assert asyncio.run(svc.my_signals(10, "0x" + "1" * 40)) == []
 
 
+def test_a_queued_close_is_pending_until_the_exchange_places_or_the_follower_drops_it(
+    config: ApiConfig, world: World
+) -> None:
+    from sa_engine.network.executor import Execution
+    from sa_engine.network.ledger import Ledger
+
+    pk = world.pub.pubkey
+    queued = "queued for the Binance testnet node; not at the exchange yet"
+    rows: list[dict[str, Any]] = [
+        {"event_id": f"e{i}", "provider": pk, "received_ms": i * 1_000, "ref": f"r{i}", "seq": i,
+         "signal_json": sample_signal(i), "executed": False, "queued": True, "exec_reason": queued}
+        for i in (1, 2, 3)
+    ]  # fmt: skip
+    alloc = sign_allocation(world.mid.sa, 1, 3000, {pk: 7000})
+    home = world.write_follower_home("me", world.mid, alloc, {})
+    (home / "follower" / "ledger.sqlite").unlink()
+    write_ledger(home, rows)
+    cfg = config.model_copy(update={"me_home": home})
+    with TestClient(create_app(cfg, Service(cfg))) as c:
+        by_id = {g["id"]: g for g in get(c, "/api/me/signals")}
+        assert {k: (v["outcome"], v["reason"]) for k, v in by_id.items()} == {
+            f"r{i}": ("pending", queued) for i in (1, 2, 3)
+        }  # waiting, not rejected
+        ledger = Ledger(home / "follower" / "ledger.sqlite")
+        ledger.set_execution(
+            Execution("e2", True, reason="accepted by the Binance testnet", venue_order_id="7")
+        )
+        ledger.set_execution(
+            Execution("e3", False, reason="timeout: the entry order did not fill; close dropped")
+        )
+        ledger.close()
+        by_id = {g["id"]: g for g in get(c, "/api/me/signals")}
+        assert (by_id["r1"]["outcome"], by_id["r1"]["reason"]) == ("pending", queued)
+        assert (by_id["r2"]["outcome"], by_id["r2"]["reason"]) == (
+            "executed",
+            "accepted by the Binance testnet",
+        )
+        assert by_id["r3"]["outcome"] == "rejected" and "close dropped" in by_id["r3"]["reason"]
+
+
 def test_my_signals_survive_a_corrupt_ledger(config: ApiConfig, world: World) -> None:
     home = world.write_follower_home("bad", world.mid, None, {})
     (home / "follower" / "ledger.sqlite").write_bytes(b"not a database")
@@ -380,15 +420,18 @@ def test_my_signals_survive_a_corrupt_ledger(config: ApiConfig, world: World) ->
 @given(
     status=st.sampled_from(["accepted", "rejected", "pending"]),
     placed=st.booleans(),
+    queued=st.booleans(),
     reason=st.text(max_size=20),
     exec_reason=st.text(max_size=20),
 )
 def test_follower_outcome_is_executed_only_for_a_placed_accepted_signal(
-    status: str, placed: bool, reason: str, exec_reason: str
+    status: str, placed: bool, queued: bool, reason: str, exec_reason: str
 ) -> None:
-    outcome, why = follower_outcome(status, placed, reason, exec_reason)
+    outcome, why = follower_outcome(status, placed, queued, reason, exec_reason)
     assert (outcome == "executed") is (status == "accepted" and placed)
-    assert (outcome == "pending") is (status == "pending")
+    assert (outcome == "pending") is (
+        status == "pending" or (status == "accepted" and queued and not placed)
+    )
     if status == "rejected":
         assert why == reason
 

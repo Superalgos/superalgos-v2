@@ -22,10 +22,17 @@ from typing import Literal
 
 from coincurve import PrivateKey, PublicKey
 from Crypto.Cipher import ChaCha20_Poly1305
+from cryptography.hazmat.primitives.asymmetric import ed25519, rsa
+from cryptography.hazmat.primitives.serialization import (
+    Encoding,
+    NoEncryption,
+    PrivateFormat,
+    load_der_private_key,
+)
 from eth_account import Account
 from eth_account.messages import encode_defunct
 from eth_account.signers.local import LocalAccount
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 SCRYPT_N_DEFAULT = 2**17  # ~128 MiB, ~0.3 s: OWASP-class cost for interactive unlock
 SCRYPT_N_MIN = 2**10  # refuse to load a file whose KDF cost was weakened
@@ -137,7 +144,7 @@ class KeyEnvelope(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     v: Literal[1] = 1
-    kind: Literal["nostr-device", "evm-sa"]
+    kind: Literal["nostr-device", "evm-sa", "exchange-api"]
     public_id: str  # pubkey hex or lowercase address: lets a user pick the right file
     kdf: Literal["scrypt"] = "scrypt"
     n: int = Field(ge=1)
@@ -160,7 +167,7 @@ def _derive(passphrase: str, salt: bytes, n: int, r: int, p: int) -> bytes:
 
 def encrypt_secret(
     secret: bytes,
-    kind: Literal["nostr-device", "evm-sa"],
+    kind: Literal["nostr-device", "evm-sa", "exchange-api"],
     public_id: str,
     passphrase: str,
     *,
@@ -275,3 +282,84 @@ def load_sa_key(path: Path, passphrase: str) -> SAKey:
     if key.address != env.public_id:
         raise KeyStoreError(f"{path} decrypts to {key.address}, header says {env.public_id}")
     return key
+
+
+# ---------------------------------------------------------------- exchange API credentials
+
+
+class ExchangeCredentials(BaseModel):
+    """An exchange API key and secret. ``repr``/``str``/``model_dump`` never show the values."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    api_key: SecretStr
+    api_secret: SecretStr
+
+
+class NotEd25519Error(ValueError):
+    """The exchange secret is not an unencrypted Ed25519 PKCS#8 private key. The message never contains the secret."""
+
+
+def normalize_ed25519_secret(secret: str) -> str:
+    """The unencrypted Ed25519 PKCS#8 PEM in ``secret`` (with or without its BEGIN/END lines), as a full PEM.
+
+    Raises :class:`NotEd25519Error` with a one-line message that says what is wrong and what to do, and never
+    includes any part of ``secret``.
+    """
+    fix = (
+        "generate an Ed25519 key, register its public key on testnet.binance.vision, "
+        "and pass the private key PEM as the secret"
+    )
+    text = secret.strip()
+    if "ENCRYPTED" in text:
+        raise NotEd25519Error(
+            f"the API secret is an encrypted PEM; decrypt it first (openssl pkey), then {fix}"
+        )
+    body = "".join(line.strip() for line in text.splitlines() if not line.startswith("-----"))
+    try:
+        der = base64.b64decode(body, validate=True)
+        key = load_der_private_key(der, password=None)
+    except Exception:
+        raise NotEd25519Error(
+            f"the API secret is not a PKCS#8 PEM private key (an HMAC secret?); {fix}"
+        ) from None
+    if isinstance(key, rsa.RSAPrivateKey):
+        raise NotEd25519Error(f"the API secret is an RSA key, not Ed25519; {fix}")
+    if not isinstance(key, ed25519.Ed25519PrivateKey):
+        raise NotEd25519Error(f"the API secret is not an Ed25519 key; {fix}")
+    return key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption()).decode()
+
+
+def save_exchange_credentials(
+    path: Path,
+    exchange: str,
+    credentials: ExchangeCredentials,
+    passphrase: str,
+    *,
+    n: int = SCRYPT_N_DEFAULT,
+) -> None:
+    """Encrypt key and secret together in one envelope. The header names only ``exchange``, never the key."""
+    payload = json.dumps(
+        {
+            "api_key": credentials.api_key.get_secret_value(),
+            "api_secret": credentials.api_secret.get_secret_value(),
+        },
+        separators=(",", ":"),
+    ).encode()
+    env = encrypt_secret(payload, "exchange-api", exchange, passphrase, n=n)
+    _write_private(path, env.model_dump_json(indent=2) + "\n")
+
+
+def load_exchange_credentials(path: Path, exchange: str, passphrase: str) -> ExchangeCredentials:
+    env = _read_envelope(path, "exchange-api")
+    if env.public_id != exchange:
+        raise KeyStoreError(
+            f"{path} holds credentials for {env.public_id!r}, expected {exchange!r}"
+        )
+    try:
+        return ExchangeCredentials.model_validate_json(decrypt_secret(env, passphrase))
+    except ValueError:
+        # pydantic's message would echo the decrypted input; say only what is wrong with the file
+        raise KeyStoreError(
+            f"{path} decrypted but does not hold an API key and secret; add them again"
+        ) from None

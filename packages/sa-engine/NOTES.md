@@ -59,7 +59,7 @@ unless marked "not verified".
     sandbox exchange with 0.1% fees (Binance spot default), so paper PnL is not flattered. Configurable via `fee_rate`.
   - `LiveExecEngineConfig(reconciliation=False)`: there is nothing to reconcile in a simulator and it skips a 10 s start-up delay.
   - `node.dispose()` closes the event loop itself; pending tasks are cancelled before it, otherwise Nautilus' executor logs
-    "Event loop is closed". `PaperSession.run` must be called from the main thread (Nautilus installs signal handlers);
+    "Event loop is closed". `NodeSession.run` must be called from the main thread (Nautilus installs signal handlers);
     other threads use `call_soon` / `FollowerExecutor.submit` (thread-safe).
   - Live bars: strategies subscribe to the native Binance timeframe (`...-1-HOUR-LAST-EXTERNAL`) and request up to 1000 bars of
     history at start to warm the indicators. Quote ticks are subscribed so limit/stop orders can fill between bars.
@@ -80,7 +80,9 @@ unless marked "not verified".
 | `compile.py` | `CompiledStrategy` (Nautilus `Strategy` around the brain); `on_order_intent` hook; shared `ExecutionBase` |
 | `data.py`, `catalog.py` | Download + sha256 verification, cache, catalog conversion |
 | `backtest.py`, `report.py` | `run_backtest(...) -> BacktestReport`; FIFO trade matching, drawdown; `BacktestReport.fills` keeps every executed order `{t, side, price, qty, fee}` (SEP-8 chart markers; older report files load with `fills: []`) |
+| `node.py` | `NodeSession` (node lifecycle), `IntentRunner` (thread-safe intent intake) |
 | `paper.py` | `run_paper`, `PaperSession`, `FollowerExecutor` |
+| `testnet.py` | `SpotTestnetSession`, `SpotTestnetStrategy`, `SpotTestnetFollower`, `check_testnet_target` |
 | `cli.py` | `python -m sa_engine {validate,schema,backtest,paper}` |
 | `network/` | provider bot, follower bot, journal, ledger, paper executors, replay clock, fixture oracle, entitlements (depends on `sa_core`; see ARCHITECTURE.md "Network bots"). Tests: `tests/test_network_*.py` against an in-process relay; the real relay is exercised by `tests/e2e` |
 
@@ -169,8 +171,13 @@ Decisions to confirm with the sa-core maintainers:
 - Spot, long-only, leverage 1. A `sell` with `action="open"` is refused with a message. Trailing stops, break-even moves and indicator stops are phases (see "Strategy document, schema 2").
 - **Rules chosen for v1 features that needed a decision** (change them here first): phases act on the whole position (not per lot); a phase exit is a market sell of everything and cancels all working orders; a re-armed order is placed again by its `create` event only while the cycle lasts (trigger off, close, `cancel_pending` and a level exit end re-arming); partial entry fills keep the order working and size each bracket to the filled part (unchanged); a formula that has no value skips the bar; exposure is capped at 100% of equity.
 - Built-in instrument definitions for backtests: BTCUSDT and ETHUSDT (Binance precision, 0.1% fees). Paper mode loads the live instrument from Binance.
-- `FollowerExecutor` sizes from the paper account's equity (equal to `capital` at start), not a fixed `capital`. This is the paper variant of SEP-3.17;
-  execution on the follower's own Binance *testnet* account (the real-API variant) is not built.
+- `FollowerExecutor` sizes from the paper account's equity (equal to `capital` at start), not a fixed `capital`. This is the paper variant of SEP-3.17.
+  `SpotTestnetFollower` (`testnet.py`) is the real-API variant: the same strategy on a node with Binance spot **testnet** data and execution clients
+  (`environment=TESTNET`, any other environment or any `base_url_*` override raises before a node starts), sized from the testnet account's real
+  equity. Reconciliation is off, so a position opened before the node started is unknown to it: a `close` only sizes against positions this
+  run opened. Order ids, rejections and fills come back as `Execution` events (`venue_order_id` is stored in the ledger); a market order's id
+  is taken from its fill if the venue sends no accepted event. Fees are the commission Binance reports, in its own currency. Credentials:
+  `sa exchange add binance-testnet`; the live probe is `tests/test_testnet_online.py` (`-m testnet`) needs a testnet **Ed25519** key: Nautilus 1.231's spot exec client logs on over the WebSocket API, which refuses HMAC keys (`session.logon failed: HMAC-SHA-256 API key is not supported`). `SA_BINANCE_TESTNET_API_KEY` is the API key Binance shows after you register the public key; `SA_BINANCE_TESTNET_API_SECRET` is the private PKCS#8 PEM. How to generate and register the pair: `apps/sa-cli/README.md`, "Binance testnet key". Verified 2026-10-19: 1 passed in 19.23s.
 - Fills in backtests come from 1m bars (`bar_execution`), not ticks or the order book; stops and limits fill within the bar's range.
 - Tests of the three example strategies on synthetic data prove mechanics; the 2025 backtest results below say nothing about edge.
 
@@ -227,7 +234,7 @@ JSON Schema, sizing and trade-matching invariants). The default run is offline a
 ### Coverage
 Default offline run: **98.8%** line+branch for `sa_engine` (420 tests, `make test`); bare `uv run pytest` at the repo root runs all four packages
 in one process at 97.4% (gate 80%). Excluded with `# pragma: no cover` (about 60 lines, all needing a live node; exercised by
-`tests/test_paper_online.py`): `PaperSession.run`, `PaperSession._main`, `PaperSession.sandbox_client`, the `_SandboxFees` actor, and the
+`tests/test_paper_online.py`): `NodeSession.run`, `NodeSession._main`, `NodeSession.prepare`, `PaperSession.sandbox_client`, the `_SandboxFees` actor, and the
 history warm-up in `CompiledStrategy` (`request_bars`, `on_historical_data`). The rest of the Nautilus glue is covered offline through
 `BacktestEngine`; the stop/target delivery rules of `CompiledStrategy` (finer bar first, quotes in paper mode) by `tests/test_compile_exec.py`.
 

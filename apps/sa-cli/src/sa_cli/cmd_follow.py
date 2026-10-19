@@ -11,18 +11,32 @@ import signal
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Any, Protocol
 
+from pydantic import SecretStr
+
+from sa_cli.cmd_exchange import BINANCE_TESTNET
+from sa_cli.cmd_profile import FollowerProfile, load_profile
 from sa_cli.home import CliError, Home
 from sa_cli.tsa_config import load_tsa_settings
+from sa_core.keys import ExchangeCredentials, NotEd25519Error, normalize_ed25519_secret
 from sa_core.models import ProviderRuleSet
-from sa_engine.network.executor import NautilusPaperExecutor, PaperExecutor, SimulatedPaperExecutor
+from sa_engine.network.executor import (
+    Executor,
+    NautilusPaperExecutor,
+    NautilusTestnetExecutor,
+    SimulatedPaperExecutor,
+)
 from sa_engine.network.follower import FollowerBot, FollowerError
 from sa_engine.network.ledger import Ledger, LedgerRow
 from sa_engine.network.replay import PriceFeed, ReplayError, ReplaySpec, load_replay_candles
 
-if TYPE_CHECKING:
-    from sa_engine.paper import FollowerExecutor
+
+class NodeRunner(Protocol):
+    """The Nautilus-backed side of an executor: blocks the main thread while the node runs."""
+
+    def run(self, duration_s: float | None = None) -> Any: ...
+
 
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 
@@ -35,9 +49,21 @@ def _providers(values: list[str]) -> list[str]:
     return out
 
 
-def _executor(args: argparse.Namespace) -> tuple[PaperExecutor, FollowerExecutor | None]:
-    """(executor, the Nautilus FollowerExecutor behind it, if any)."""
+def _scrub(text: str, secrets: list[str]) -> str:
+    for secret in secrets:
+        if secret:
+            text = text.replace(secret, "[REDACTED]")
+    return text
+
+
+def _executor(
+    args: argparse.Namespace, home: Home, profile: FollowerProfile
+) -> tuple[Executor, NodeRunner | None, list[str]]:
+    """(executor, the Nautilus runner behind it if any, secret strings to keep out of error messages)."""
     kind = args.executor or ("sim" if args.replay_spec else "nautilus")
+    disaster_stop_pct = (
+        profile.disaster_stop_pct
+    )  # SEP-14.5; the sim executor has no exchange to rest at
     if kind == "sim":
         if not args.replay_spec:
             raise CliError(
@@ -48,11 +74,37 @@ def _executor(args: argparse.Namespace) -> tuple[PaperExecutor, FollowerExecutor
             candles = load_replay_candles(spec, data_dir=args.data_dir)
         except ReplayError as exc:
             raise CliError(str(exc)) from exc
-        return SimulatedPaperExecutor(spec.instrument, args.capital, PriceFeed(candles)), None
+        return SimulatedPaperExecutor(spec.instrument, args.capital, PriceFeed(candles)), None, []
+    if kind == "testnet":
+        from sa_engine.testnet import SpotTestnetFollower  # noqa: PLC0415 - Nautilus loads only for live trading
+
+        creds = home.load_exchange(BINANCE_TESTNET)
+        try:
+            pem = normalize_ed25519_secret(creds.api_secret.get_secret_value())
+        except NotEd25519Error as exc:
+            raise CliError(f"stored {BINANCE_TESTNET} credentials: {exc}") from None
+        creds = ExchangeCredentials(api_key=creds.api_key, api_secret=SecretStr(pem))
+        body = "".join(
+            pem.splitlines()[1:-1]
+        )  # the key without its BEGIN/END lines, in case a message echoes it
+        secrets = [creds.api_key.get_secret_value(), pem, body]
+        try:
+            follower = SpotTestnetFollower(
+                args.instrument, creds, disaster_stop_pct=disaster_stop_pct
+            )
+        except ValueError as exc:
+            raise CliError(_scrub(str(exc), secrets)) from None
+        return NautilusTestnetExecutor(follower), follower, secrets
     from sa_engine.paper import FollowerExecutor  # noqa: PLC0415 - Nautilus loads only for live paper trading
 
-    inner = FollowerExecutor(args.instrument, args.capital, log_level="WARNING")
-    return NautilusPaperExecutor(inner), inner
+    inner = FollowerExecutor(
+        args.instrument, args.capital, disaster_stop_pct=disaster_stop_pct, log_level="WARNING"
+    )
+    return NautilusPaperExecutor(inner), inner, []
+
+
+def _report_key(args: argparse.Namespace) -> str:
+    return "testnet" if args.executor == "testnet" else "paper"
 
 
 def _row_line(row: LedgerRow) -> str:
@@ -70,6 +122,7 @@ def _row_line(row: LedgerRow) -> str:
 def follow(args: argparse.Namespace, home: Home) -> int:
     device = home.load_device()
     delegation = home.load_delegation(device)
+    profile = load_profile(home)
     providers = _providers(args.provider or [])
     if not providers and not args.signal_file:
         raise CliError(
@@ -78,7 +131,11 @@ def follow(args: argparse.Namespace, home: Home) -> int:
     if not args.signal_file and not args.relay:
         raise CliError("--relay URL is required to follow providers")
     ledger = Ledger(Path(args.ledger) if args.ledger else home.root / "follower" / "ledger.sqlite")
-    executor, nautilus = _executor(args)
+    try:
+        executor, nautilus, secrets = _executor(args, home, profile)
+    except BaseException:
+        ledger.close()
+        raise
     allocation = None if args.signal_file or args.no_allocation else home.last_allocation()
     bot = FollowerBot(
         device=device, delegation=delegation, relay_url=args.relay or "ws://unused", providers=providers, executor=executor,
@@ -86,18 +143,28 @@ def follow(args: argparse.Namespace, home: Home) -> int:
         max_age_s=args.max_age, reorder_wait_s=args.reorder_wait,
     )  # fmt: skip
     try:
-        if args.signal_file:
-            return _follow_files(args, bot, nautilus)
-        return _follow_relay(args, bot, nautilus)
+        try:
+            if args.signal_file:
+                return _follow_files(args, bot, nautilus)
+            return _follow_relay(args, bot, nautilus, profile)
+        finally:
+            _flush_exchange_events(executor, ledger)
     except FollowerError as exc:
-        raise CliError(str(exc)) from exc
+        raise CliError(_scrub(str(exc), secrets)) from None
+    except (RuntimeError, TimeoutError) as exc:  # the Nautilus node failed to start or run
+        raise CliError(f"the trading node failed: {_scrub(str(exc), secrets)}") from None
     finally:
         ledger.close()
 
 
-def _follow_files(
-    args: argparse.Namespace, bot: FollowerBot, nautilus: FollowerExecutor | None
-) -> int:
+def _flush_exchange_events(executor: Executor, ledger: Ledger) -> None:
+    """Order ids and fills that arrived after the bot stopped still belong in the ledger."""
+    if isinstance(executor, NautilusTestnetExecutor):
+        for execution in asyncio.run(executor.poll(int(time.time() * 1000))):
+            ledger.set_execution(execution)
+
+
+def _follow_files(args: argparse.Namespace, bot: FollowerBot, nautilus: NodeRunner | None) -> int:
     rules = None
     if args.ruleset:
         try:
@@ -122,12 +189,17 @@ def _follow_files(
         print(_row_line(row))
     if nautilus is not None and any(r.status == "accepted" for r in rows):
         report = nautilus.run(args.duration or 10.0)
-        print(json.dumps({"paper": report.model_dump(exclude={"trades"})}, sort_keys=True))
+        print(
+            json.dumps({_report_key(args): report.model_dump(exclude={"trades"})}, sort_keys=True)
+        )
     return 1 if any(r.status != "accepted" for r in rows) else 0
 
 
 def _follow_relay(
-    args: argparse.Namespace, bot: FollowerBot, nautilus: FollowerExecutor | None
+    args: argparse.Namespace,
+    bot: FollowerBot,
+    nautilus: NodeRunner | None,
+    profile: FollowerProfile,
 ) -> int:
     started = time.time()
     stop_box: list[tuple[asyncio.AbstractEventLoop, asyncio.Event]] = []
@@ -187,7 +259,8 @@ def _follow_relay(
             raise errors[0]
     summary = bot.summary()
     if nautilus is not None:
-        summary["paper"] = paper.model_dump(exclude={"trades"})
+        summary[_report_key(args)] = paper.model_dump(exclude={"trades"})
+        summary["disaster_stop_pct"] = profile.disaster_stop_pct
     summary["seconds"] = round(time.time() - started, 1)
     print(json.dumps(summary, sort_keys=True))
     return 0

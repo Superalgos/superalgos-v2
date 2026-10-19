@@ -16,6 +16,7 @@ uv run python -m sa_engine schema -o schema/strategy.schema.json                
 uv run pytest                              # offline, seconds
 uv run pytest -m slow -o addopts=""        # 1 year x 3 strategies (downloads about 40 MB the first time)
 uv run pytest -m online -o addopts=""      # live paper smoke, about 3 minutes, needs network
+uv run pytest tests/test_testnet_online.py -m testnet -o addopts=""   # SEP-3.17 probe; needs SA_BINANCE_TESTNET_API_KEY / _SECRET
 uv run ruff check . && uv run ruff format --check . && uv run mypy --strict src tests
 ```
 

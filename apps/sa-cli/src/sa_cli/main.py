@@ -8,7 +8,17 @@ import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
-from sa_cli import cmd_demo, cmd_engine, cmd_follow, cmd_gov, cmd_identity, cmd_provider, cmd_record
+from sa_cli import (
+    cmd_demo,
+    cmd_engine,
+    cmd_exchange,
+    cmd_follow,
+    cmd_gov,
+    cmd_identity,
+    cmd_profile,
+    cmd_provider,
+    cmd_record,
+)
 from sa_cli.home import CliError, Home
 from sa_core.governance import DEFAULT_MIN_PROPOSER_POWER
 
@@ -205,8 +215,34 @@ def build_parser() -> argparse.ArgumentParser:
     exp.add_argument("--reveal", action="store_true")
     exp.set_defaults(func=cmd_provider.export)
 
+    # exchange
+    exch = sub.add_parser(
+        "exchange", help="store your own exchange API credentials, encrypted"
+    ).add_subparsers(dest="exchange_cmd", required=True)
+    ex_add = exch.add_parser(
+        "add",
+        help=f"encrypt an API key and secret (prompted, or {cmd_exchange.KEY_ENV} and {cmd_exchange.SECRET_ENV})",
+    )
+    ex_add.add_argument("exchange", choices=[cmd_exchange.BINANCE_TESTNET])
+    ex_add.set_defaults(func=cmd_exchange.add)
+
+    # profile
+    prof = sub.add_parser(
+        "profile", help="your follower settings (<home>/profile.json)"
+    ).add_subparsers(dest="profile_cmd", required=True)
+    prof.add_parser("show", help="print the settings in force").set_defaults(func=cmd_profile.show)
+    pset = prof.add_parser(
+        "set",
+        help="change one setting, e.g. `sa profile set disaster-stop-pct 10` (0 turns the disaster stop off)",
+    )
+    pset.add_argument("setting", help=f"one of: {', '.join(cmd_profile.SETTINGS)}")
+    pset.add_argument("value")
+    pset.set_defaults(func=cmd_profile.set_value)
+
     # follow
-    fol = sub.add_parser("follow", help="follower bot: verify signals and paper-trade them")
+    fol = sub.add_parser(
+        "follow", help="follower bot: verify signals and trade them (paper or testnet)"
+    )
     fol.add_argument("--relay", help=f"relay URL, e.g. {DEFAULT_RELAY}")
     fol.add_argument("--provider", action="append", metavar="PUBKEY", help="repeatable")
     fol.add_argument(
@@ -223,14 +259,20 @@ def build_parser() -> argparse.ArgumentParser:
     fol.add_argument("--ledger", help="SQLite ledger (default: <home>/follower/ledger.sqlite)")
     fol.add_argument(
         "--executor",
-        choices=["sim", "nautilus"],
-        help="default: sim with --replay-spec, else nautilus (live data)",
+        choices=["sim", "nautilus", "testnet"],
+        help="default: sim with --replay-spec, else nautilus (live data, simulated fills); "
+        "testnet: real orders on your Binance spot testnet account (see `sa exchange add binance-testnet`)",
     )
     fol.add_argument(
         "--replay-spec", help="the provider's replay.json: prices for the simulated account"
     )
     fol.add_argument("--instrument", default="BINANCE:BTCUSDT")
-    fol.add_argument("--capital", type=float, default=10_000.0)
+    fol.add_argument(
+        "--capital",
+        type=float,
+        default=10_000.0,
+        help="paper account size (ignored by --executor testnet)",
+    )
     fol.add_argument("--duration", type=float)
     fol.add_argument("--data-dir", type=Path)
     fol.add_argument(
