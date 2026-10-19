@@ -156,8 +156,9 @@ func pendingReleasesSurviveRestart(t *testing.T) float64 {
 	var sigs []sig
 	for i := 0; i < 3; i++ {
 		ev := prov.signal(300, i)
+		at := time.Now() // before the publish, like the other delivery tests: the relay stamps receipt after this
 		pub.mustPublish(ev)
-		sigs = append(sigs, sig{ev.ID, time.Now()})
+		sigs = append(sigs, sig{ev.ID, at})
 		time.Sleep(300 * time.Millisecond)
 	}
 	lapsing := fast.signal(60, 1)
@@ -193,9 +194,9 @@ func pendingReleasesSurviveRestart(t *testing.T) float64 {
 		want := s.at.Add(scaledDelay("1", 300))
 		e := ms(at.Sub(want))
 		errs = append(errs, e)
-		// sentAt is read after the OK round trip, so a few ms "early" is the test clock. A release re-armed
-		// from the restart instead of the original time would be 1 s+ late.
-		if e < -10 || e > 1000 {
+		// Same early bound as the other delivery tests. A release re-armed from the restart instead of the
+		// original time would be 1 s+ late.
+		if e < -2 || e > 1000 {
 			t.Errorf("released %.1f ms from schedule (negative = early)", e)
 		}
 	}
