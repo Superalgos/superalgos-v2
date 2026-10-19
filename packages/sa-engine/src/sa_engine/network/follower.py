@@ -8,9 +8,11 @@ Checks, in order, for each signal (relayed or read from a file, SEP-3.29):
 2. the delegating SA address equals the provider's rule set (when the rule set is known);
 3. not stale and not from the future;
 4. the signal's ``timeframe`` equals the one bound in the rule set (SEP-3.40);
-5. chain continuity: ``seq`` is the next one and ``prev`` is the previous signal's reference. The first
+5. the signal names the latest closed bar at its (signed) ``created_ms``: ``bar_grace_s`` and ``skew_s`` are
+   the tolerances (SEP-3.18);
+6. chain continuity: ``seq`` is the next one and ``prev`` is the previous signal's reference. The first
    signal seen sets the baseline. A gap rejects the signal (and moves the head, so later ones verify);
-6. anchors are checked when their kind-1040 attestations arrive; a late or invalid anchor is recorded,
+7. anchors are checked when their kind-1040 attestations arrive; a late or invalid anchor is recorded,
    it cannot undo a paper order already placed.
 
 A rejected signal is never executed. Everything, accepted or not, is in the ledger with its receive time.
@@ -50,6 +52,7 @@ from sa_core.nostr import NostrError, RelayClient, event_from_json
 from sa_core.power import PowerError, allocation_event, check_timeframe, validate_ruleset_event
 from sa_core.signals import (
     SignalError,
+    check_bar,
     commitment_digest,
     open_private_signal,
     verify_commitment_event,
@@ -97,6 +100,7 @@ class FollowerBot:
         tolerance_s: int = 60,
         max_age_s: float | None = None,
         skew_s: float = 10.0,
+        bar_grace_s: float = 10.0,
         allow_gaps: bool = False,
         poll_s: float = 0.5,
         reorder_wait_s: float = 1.0,
@@ -115,6 +119,7 @@ class FollowerBot:
         self.allocation, self.clock = allocation, clock
         self.revocations: dict[tuple[str, str, int], Revocation] = {}  # kind 9334 for the keys we depend on
         self.tolerance_s, self.max_age_s, self.skew_s = tolerance_s, max_age_s, skew_s
+        self.bar_grace_s = bar_grace_s
         self.allow_gaps, self.poll_s, self.reorder_wait_s = allow_gaps, poll_s, reorder_wait_s
         self._relay_factory = relay_factory or (
             lambda: RelayClient(relay_url, auth_key=device, auth_tags=[delegation_tag(delegation)])
@@ -361,6 +366,15 @@ class FollowerBot:
                 check_timeframe(rules, signal.timeframe)
             except PowerError as exc:
                 return self._reject(ev, source, now_ms, f"timeframe: {exc}", signal=signal)
+        try:
+            check_bar(
+                signal,
+                rules.timeframe if rules is not None else signal.timeframe,
+                round(self.bar_grace_s * 1000),
+                round(self.skew_s * 1000),
+            )
+        except SignalError as exc:
+            return self._reject(ev, source, now_ms, f"bar: {exc}", signal=signal)
 
         ref = ev.id
         if private and source != "file":

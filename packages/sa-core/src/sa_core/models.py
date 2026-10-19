@@ -93,7 +93,7 @@ class Signal(_Frozen):
     content is what is hashed for a commitment (SEP-3.28).
     """
 
-    v: Literal[1] = 1
+    v: Literal[2] = 2
     strategy_id: str = Field(min_length=1, max_length=128)
     seq: int = Field(ge=1)
     prev: Hex64 | None
@@ -106,6 +106,7 @@ class Signal(_Frozen):
     stop_price: float | None = Field(default=None, gt=0.0, allow_inf_nan=False)
     timeframe: int = Field(gt=0)  # seconds
     created_ms: int = Field(gt=0)
+    bar_open_ms: int = Field(ge=0)  # open time of the bar the decision was made on (SEP-3.18)
 
     @model_validator(mode="after")
     def _chain_and_price(self) -> Signal:

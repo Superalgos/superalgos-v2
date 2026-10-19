@@ -6,7 +6,7 @@
    "id": "2d8bcb7246fb517d05ef1ff3eb91bc23b1b2b28d8aa1ec87e7c1aa174aab1620",
    "kind": 9332,
    "pubkey": "3c72addb4fdf09af94f0c94d7fe92a386a7e70cf8a1d85916386bb2535c7b1b1",
-   "sig": "b8fc2940ace21859192019a5174326ab5c48513776bfe4cf64b89c5f009e117fb1ec392a48b4e51ef2a29c3a99510987d5964ef9d1e8523e0c5049efde080917",
+   "sig": "577186cab6a41f4d34ecdc295889019915b1521e09740d5b112dd8ead65b65270d6092b4294405b3f188f3e93c6af4c3d5394c7a07d41642d3b1bc960ac125d6",
    "tags": [
     [
      "p",
@@ -30,7 +30,7 @@
    "id": "0e7096be935bb4bda62e48e167e8bff9f4902b8ecf7b69ee870050ad55856941",
    "kind": 9332,
    "pubkey": "3c72addb4fdf09af94f0c94d7fe92a386a7e70cf8a1d85916386bb2535c7b1b1",
-   "sig": "3e071057f929455e0a7023fc3b833fc441e2166da592c2a3e42e4e67f2e3b5088578a6e248da0cf9bdac052efdf97953025f86bbcad30e3eb77a0d9b79e003c2",
+   "sig": "cf49ee3b8b6b61678abac702ed92037355d083ec4878ebc0f9fa5972aa66e402c032dd445b531ea73de43dec2128c4986b26d192b4244dc64c13949aca323cc5",
    "tags": [
     [
      "sa-delegation",
@@ -46,7 +46,7 @@
    "id": "12b51c215099a33015cac57ed1971ca6e4bf7ceb9a460a5d39ed4651c7962232",
    "kind": 22242,
    "pubkey": "3c72addb4fdf09af94f0c94d7fe92a386a7e70cf8a1d85916386bb2535c7b1b1",
-   "sig": "728fc5a11531a73bb9adb65cd6aa86fa6430e9f5d5424b3b305373d262cccf38ebe7b41f2aa529d31593713fd7a46cd48c151191f2d618eae58fc3d9c002cc10",
+   "sig": "1260918559d203cc98d26d2d52813774c75de961aca8ceaa24d729e7894ab844fc8ba03d8806edeb0d866ddd90cc16769b1dc58f7f870eb2ad28a4295da22179",
    "tags": [
     [
      "relay",
@@ -65,12 +65,12 @@
    ]
   },
   "commitment": {
-   "content": "{\"v\":1,\"strategy_id\":\"alpha\",\"seq\":1,\"prev\":null,\"digest\":\"c288ed12875f5e787966f2e3245d05ddcc10320617d058f65fa871f2a5000e61\"}",
+   "content": "{\"v\":1,\"strategy_id\":\"alpha\",\"seq\":1,\"prev\":null,\"digest\":\"06dfb6fd44610d6bef9102bbc63dad355e6a0895727f1563a1a97c490d521c90\"}",
    "created_at": 1700000000,
-   "id": "05b780189775d303f18ff2f60cfbf64d1d0a672eba87b2498740193ac7f237bf",
+   "id": "1300ea9f8907a302b32fc66ee7013b44eeccedacdc9d237031a612fde0ad0590",
    "kind": 9318,
    "pubkey": "2c0b7cf95324a07d05398b240174dc0c2be444d96b159aa6c7f7b1e668680991",
-   "sig": "5a1c3f0c9bd0256c28fe1cee522a29377a86201bd056f98d9810d05ccaf82dbfb12a8bac52bbf3dccaed30dada4876f76ba676b189e28bf032ab198639641560",
+   "sig": "0404bdd1bd4192d05df7bfb68c4d594610dbebdab4203ebbd3c948816b7df1875d9065015cfc5a3a90efdf0ba466ec869bc6bfef08ebe7797bd277c0e2dac8db",
    "tags": [
     [
      "sa-delegation",
@@ -86,7 +86,7 @@
    "id": "d42991af43f52df0cc445654c0cf18a8d512a543b349d905057df26916fc3232",
    "kind": 9333,
    "pubkey": "3c72addb4fdf09af94f0c94d7fe92a386a7e70cf8a1d85916386bb2535c7b1b1",
-   "sig": "d907c9704f2611d81b1015a8528ce2b993515928b5da2dac73f92d6bebb5e814ba5234b14e4796a85ffaa9ea210c34ea24f7143d3d5c4123ec75e8f9b4b5aff3",
+   "sig": "3b102132c628fa3847c39d46ed800424ac61cf01b241782e179ec9fc496a52b945a811a51b9dc7556f60057c4320f0f360bbda227fa7e3cadc32273e8fbe8e70",
    "tags": []
   },
   "ruleset_private": {
@@ -95,7 +95,7 @@
    "id": "ec649b6d29653695c0d1890e6bb5a569c7b42a1c74c59bd8ea5fdbdc7f00e3a6",
    "kind": 37318,
    "pubkey": "2c0b7cf95324a07d05398b240174dc0c2be444d96b159aa6c7f7b1e668680991",
-   "sig": "078d8078b67cfa0c2375e1572ed2836be82a9eff39bd2efbae403533a06dda8166c4a8085e861e376d3ee2666d38e4cff8ea8fde7a28bbec273d67f617b6047d",
+   "sig": "36f37fdcf6b5849f05a84a3defb5e2b318e2ff55b17a53994f7e19f69fe2ca2cf34110599c5d0dc9cd9df364c3df9e916c14d3d8da2cba2dc0933a5b8244f9be",
    "tags": [
     [
      "d",
@@ -115,7 +115,7 @@
    "id": "7ce1a4f331c73ce5d5aa264d9951988f46e032962b5d05efb82af94dc2890889",
    "kind": 37318,
    "pubkey": "466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27",
-   "sig": "3318a9b6bfc7b0717333523cbac837653b7b40f8e9f6e505ff068da6aaef0be43618e4c64a8f514897dd10cd7b2898a7dcd5d2302137891cdeb39627c3da9a20",
+   "sig": "d27d4bdc0b4b696ef98d5b588dee344b756eb5179fcf55f52e87032be96a0ce0a0e7188ccf1b97468806a5c5ecc9671d8dcfad32fee820b1cb71e7e3ad952adf",
    "tags": [
     [
      "d",
@@ -130,12 +130,12 @@
    ]
   },
   "signal_private": {
-   "content": "ApW4MDH8qGr+I+KZYDV7qGD7F69o8g6oZkmVtwYzUkWpA+XMbON2AVTvKXMtZYCK1fpYC3hNRK6c+BJKVwD5aEf3ArU3V9mLtvV7VFC3idw7XpL9vdU9XfsX68LEnQALn5Ai+f5/+xkFgLGi5pZV2b9UeYCqtjl0GwflOAVaaaBQx3RmLiW550LPoLhGsvyYLRdTMbdE8Dosb4Fwb1rW2bec4HJgb5QIBRkf+hy+0nrRz+qRj3WKrkUwHKJD+g3n2/LSajjBtSyUrD3+McUJOTUro+XxKhbGe6wDd3PvfcDOaTEOeDiR/ZBux3XH0W57dAG0JlOqpMyKH/FRK6itk6FiHayhcfTX6JrtyJwQP/I4IndQLHlQBGJNYnjG3xA7BHYjntTrzDEY7aB6c6nJ4cTddgDUqcY7dqTCsbpoMWjpsuE=",
+   "content": "Au6fdl3krQHSBg26wk6WP6gZkDd8A512rLU2QiMYUQbK85c1YKBq6LVblP3IXC0h1Z92riN8Z8J32ZHPfjLanzRnMs1IcbGQ/m4BkeBDvdfI6PyWge19yQz9GU6w4IrvX25qokJP7f3Jx9vnbYJu81ulIO2fPqM7F124UUAaC6L/JFU2elxYIGUg4LgpVVhwMYqIaaBUp+5cmsl23pWivsbdCVGJPGCESAGCIiov84SmF3vQj3xvJ6lwAS6dNWWxKk8YKxTuH0fJMU/W/puSosHpKXTxvPi6w4D8/fVw3CLGBX+EIkR9w/3NtKN4oZJmwLOF9J+TtAU6W11KlHvpf4kpJ3xKooNIXfU+uB1utzURhkpUq+yUvvx7JVFGwxhsk0ppSMQ0lLIQdCgg70HqP1lNT9aJBr6IngT8zjVWvGHhU48jOU/nTL1hoUf2z2iZZZC+Cp8/zhjYoQFvu55pEYMVfH60iKvI7BM6B51wqejDfx6HVbo0WG1JhzVGMS9D6NSr",
    "created_at": 1700000000,
-   "id": "23e60ba49f2bfbe53474fd337c784607129e6063e662c00c7d51fa58743f24e0",
+   "id": "b0b9d257abe80a321a8789f26810f773756ca6204896d88c9f0b48e420111b4d",
    "kind": 9317,
    "pubkey": "2c0b7cf95324a07d05398b240174dc0c2be444d96b159aa6c7f7b1e668680991",
-   "sig": "9a2e5f0bdfbc43afa48f3001c939486ef93784266c97f61d05acdd7802409d9aa5e90b259ee3f862a6166ebe98cd35c27d61c1004cfcfa05c3ece3ffaad487c1",
+   "sig": "8f8f23ae57d2387321c211c42f7e20bbbc6ddfc4c2e50812cfc29c1f26ac7b04dcf55c21ba76d3583ac9ab8c7101670fdeb0c544f3551e85b05babc5a4a1f68c",
    "tags": [
     [
      "sa-delegation",
@@ -150,12 +150,12 @@
    ]
   },
   "signal_public": {
-   "content": "{\"v\":1,\"strategy_id\":\"alpha\",\"seq\":1,\"prev\":null,\"instrument\":\"BINANCE:BTCUSDT\",\"side\":\"buy\",\"action\":\"open\",\"size_fraction\":0.25,\"order_type\":\"market\",\"limit_price\":null,\"stop_price\":null,\"timeframe\":3600,\"created_ms\":1700000000000}",
+   "content": "{\"v\":2,\"strategy_id\":\"alpha\",\"seq\":1,\"prev\":null,\"instrument\":\"BINANCE:BTCUSDT\",\"side\":\"buy\",\"action\":\"open\",\"size_fraction\":0.25,\"order_type\":\"market\",\"limit_price\":null,\"stop_price\":null,\"timeframe\":3600,\"created_ms\":1700000000000,\"bar_open_ms\":1699996400000}",
    "created_at": 1700000000,
-   "id": "2146aa5868b2af12b41a03d1e2fdc7a1960b94be90efd92e0b00c7e9ca75d98f",
+   "id": "e12214fcfbfea7d0d410c492b3f440c1f5bfb3fa878b6d82b8c273d66f54ad91",
    "kind": 9317,
    "pubkey": "466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27",
-   "sig": "943a1fa07511f534de50044a1010a21580c85921889ba2792bd6d8965333031622e9850a142d6cb918889da21877a354b7c155cbc22d1faca624deb9f60de446",
+   "sig": "cb5e4ff5e9f5e102407bfca28e0dbf14623acc0dbeee3bcefe4ec9abf05665159d9fb314ac088e75f4610e3ad2449170b029d77ca695c2836aaaf5776f2467a3",
    "tags": [
     [
      "sa-delegation",
@@ -171,7 +171,7 @@
    "id": "91728848f650aacb9ccfc2e023d1e2bcf384dfd57ba302545c72b2a595591590",
    "kind": 9331,
    "pubkey": "3c72addb4fdf09af94f0c94d7fe92a386a7e70cf8a1d85916386bb2535c7b1b1",
-   "sig": "9f09d013f73f2098c17d9e059c74cf20c21f17cfa169a36311c9b8c3547101a3ba44b923c95a42570f14ba68d97a5c83d299565b6fa8a1684c9898d832afbd55",
+   "sig": "02144fe3a08b2078ca1bbe96d5594f27a1605baf51bccd48a6722ec23246fc31926ea09942d64170fd5d3758c5dbdf125323bcebb513cd66ed8229b3f970855e",
    "tags": [
     [
      "e",

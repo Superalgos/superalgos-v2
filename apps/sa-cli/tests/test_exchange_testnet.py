@@ -125,6 +125,7 @@ def signed(demo: Cli) -> tuple[str, str]:
             "order_type": "market",
             "timeframe": 3600,
             "created_ms": int(time.time() * 1000),
+            "bar_open_ms": int(time.time() * 1000) - 3_600_000,
         }
     )
     return build_signal_event(device, sig, delegation).model_dump_json(), device.pubkey_hex

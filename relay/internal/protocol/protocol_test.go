@@ -246,15 +246,38 @@ func TestDelayMath(t *testing.T) {
 }
 
 func TestPublicSignalParsing(t *testing.T) {
-	ok := `{"v":1,"strategy_id":"s","seq":1,"prev":null,"instrument":"BINANCE:BTCUSDT","side":"buy","action":"open","size_fraction":0.5,"order_type":"market","timeframe":3600,"created_ms":1700000000123}`
+	ok := `{"v":2,"strategy_id":"s","seq":1,"prev":null,"instrument":"BINANCE:BTCUSDT","side":"buy","action":"open","size_fraction":0.5,"order_type":"market","timeframe":3600,"created_ms":1700000000123,"bar_open_ms":1699996400123}`
 	s, err := ParsePublicSignal(ok)
 	if err != nil || s.TimeframeSec != 3600 || s.CreatedAt.UnixMilli() != 1700000000123 {
 		t.Fatalf("%+v %v", s, err)
 	}
 	for _, bad := range []string{`not json`, `{"timeframe":"1h","created_ms":1}`, `{"timeframe":60}`, `{"timeframe":-5,"created_ms":1}`, `{"timeframe":60.5,"created_ms":1}`, `[]`,
-		`{"v":1,"timeframe":3600,"created_ms":1700000000123,"api_secret":"s3cr3t"}`, ok + ` {"trailing":1}`} {
+		`{"v":2,"timeframe":3600,"created_ms":1700000000123,"bar_open_ms":1699996400123,"api_secret":"s3cr3t"}`, ok + ` {"trailing":1}`} {
 		if _, err := ParsePublicSignal(bad); err == nil {
 			t.Errorf("%q accepted", bad)
+		}
+	}
+}
+
+// SEP-3.18: a signal must be v2 and name its bar; v1 content and a missing or malformed bar_open_ms are refused.
+func TestPublicSignalNamesItsBar(t *testing.T) {
+	const body = `"strategy_id":"s","seq":1,"prev":null,"instrument":"BINANCE:BTCUSDT","side":"buy","action":"open","size_fraction":0.5,"order_type":"market","timeframe":3600,"created_ms":1700000000123`
+	s, err := ParsePublicSignal(`{"v":2,` + body + `,"bar_open_ms":1699996400000}`)
+	if err != nil || s.BarOpenAt.UnixMilli() != 1699996400000 {
+		t.Fatalf("v2 signal: %+v %v", s, err)
+	}
+	cases := map[string]struct{ content, want string }{
+		"v1 with the field": {`{"v":1,` + body + `,"bar_open_ms":1699996400000}`, "v is 1"},
+		"v1 without":        {`{"v":1,` + body + `}`, "v is 1"},
+		"no v":              {`{` + body + `,"bar_open_ms":1699996400000}`, "v is 0"},
+		"v3":                {`{"v":3,` + body + `,"bar_open_ms":1699996400000}`, "v is 3"},
+		"missing bar":       {`{"v":2,` + body + `}`, "bar_open_ms is missing"},
+		"negative bar":      {`{"v":2,` + body + `,"bar_open_ms":-1}`, "bar_open_ms"},
+		"fractional bar":    {`{"v":2,` + body + `,"bar_open_ms":1.5}`, "bar_open_ms"},
+	}
+	for name, c := range cases {
+		if _, err := ParsePublicSignal(c.content); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: err=%v, want a refusal containing %q", name, err, c.want)
 		}
 	}
 }
@@ -292,7 +315,7 @@ func TestRecipient(t *testing.T) {
 // SEP-1.13: every content schema is closed. A secret pasted into a signal, commitment, allocation or
 // rule set is an error that names the field; nothing is stored or forwarded.
 func TestContentSchemasRejectSecretFields(t *testing.T) {
-	sig := `{"v":1,"strategy_id":"s","seq":1,"prev":null,"instrument":"BINANCE:BTCUSDT","side":"buy","action":"open","size_fraction":0.5,"order_type":"market","timeframe":3600,"created_ms":1700000000123`
+	sig := `{"v":2,"strategy_id":"s","seq":1,"prev":null,"instrument":"BINANCE:BTCUSDT","side":"buy","action":"open","size_fraction":0.5,"order_type":"market","timeframe":3600,"created_ms":1700000000123,"bar_open_ms":1699996400123`
 	com := `{"v":1,"strategy_id":"s","seq":1,"prev":null,"digest":"` + strings.Repeat("ab", 32) + `"`
 	if _, err := ParsePublicSignal(sig + `}`); err != nil {
 		t.Fatalf("baseline signal refused: %v", err)

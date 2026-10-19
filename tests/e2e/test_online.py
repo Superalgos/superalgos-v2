@@ -84,6 +84,7 @@ def test_sep_3_17_a_verified_signal_is_executed_by_the_nautilus_paper_node_on_li
     sig = Signal(
         strategy_id="live", seq=1, prev=None, instrument="BINANCE:BTCUSDT", side="buy", action="open",
         size_fraction=0.1, order_type="market", timeframe=3600, created_ms=int(time.time() * 1000),
+        bar_open_ms=int(time.time() * 1000) - 3_600_000,
     )  # fmt: skip
     file = work / "signal.json"
     file.write_text(build_signal_event(device, sig, home.load_delegation(device)).model_dump_json())

@@ -43,6 +43,28 @@ class SignalError(Exception):
     """A signal or commitment failed verification. The message says which check and why."""
 
 
+def check_bar(signal: Signal, bound_timeframe_s: int, grace_ms: int, skew_ms: int) -> None:
+    """The bar a signal names must be the latest closed bar at its (signed) creation time (SEP-3.18).
+
+    ``bound_timeframe_s`` is the timeframe the provider's rule set binds. With ``close = bar_open_ms +
+    timeframe``: the bar must have closed by ``created_ms + skew_ms``, and must not be a whole bar (plus
+    ``grace_ms``) or more behind ``created_ms``. Bars are not required to be epoch-aligned.
+    """
+    bar_ms = bound_timeframe_s * 1000
+    close = signal.bar_open_ms + bar_ms
+    if close > signal.created_ms + skew_ms:
+        raise SignalError(
+            f"bar not closed when the signal was created: bar {signal.bar_open_ms} closes at {close}, "
+            f"created_ms is {signal.created_ms} (skew allowed {skew_ms} ms)"
+        )
+    behind = signal.created_ms - close
+    if behind >= bar_ms + grace_ms:
+        raise SignalError(
+            f"decided on bar {signal.bar_open_ms}, but it closed {behind} ms before created_ms "
+            f"{signal.created_ms}; a newer bar had already closed (limit {bar_ms + grace_ms} ms)"
+        )
+
+
 def build_signal_event(
     key: DeviceKey, signal: Signal, delegation: Delegation, created_at: int | None = None
 ) -> NostrEvent:

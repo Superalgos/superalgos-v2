@@ -296,6 +296,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         help="reject signals older than this many seconds (default 3 x timeframe + 30)",
     )
+    fol.add_argument(
+        "--bar-grace",
+        type=float,
+        default=10.0,
+        help="seconds of slack on top of one timeframe before a signal's bar counts as stale (default 10)",
+    )
     fol.add_argument("--ready-file", help="written once subscribed (for scripts)")
     _add_tsa(fol)
     fol.set_defaults(func=cmd_follow.follow)

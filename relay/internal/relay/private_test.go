@@ -21,8 +21,8 @@ const secretMarker = "SECRET-MARKER-7f3a91c2"
 
 func privateSignal(t *testing.T, provider actor, recipientPub string, seq int) *nostr.Event {
 	t.Helper()
-	plain := `{"v":1,"strategy_id":"alpha","seq":` + itoa(seq) + `,"instrument":"BINANCE:BTCUSDT","side":"buy","action":"open","size_fraction":0.5,"order_type":"market","timeframe":60,"created_ms":` +
-		itoa(int(time.Now().UnixMilli())) + `,"note":"` + secretMarker + `"}`
+	plain := `{"v":2,"strategy_id":"alpha","seq":` + itoa(seq) + `,"instrument":"BINANCE:BTCUSDT","side":"buy","action":"open","size_fraction":0.5,"order_type":"market","timeframe":60,"created_ms":` +
+		itoa(int(time.Now().UnixMilli())) + `,"bar_open_ms":` + itoa(int(time.Now().UnixMilli())-60_000) + `,"note":"` + secretMarker + `"}`
 	ck, err := nip44.GenerateConversationKey(recipientPub, provider.sk)
 	if err != nil {
 		t.Fatal(err)

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
@@ -9,13 +11,14 @@ from hypothesis import strategies as st
 from core_helpers import FAR, T0_MS, Provider
 from sa_core.delegation import delegation_tag, sign_delegation
 from sa_core.keys import DeviceKey, SAKey
-from sa_core.models import NostrEvent
+from sa_core.models import NostrEvent, Signal
 from sa_core.nostr import build_event
 from sa_core.signals import (
     SignalError,
     build_commitment_event,
     build_private_signal_event,
     build_signal_event,
+    check_bar,
     check_reveal,
     commitment_digest,
     open_private_signal,
@@ -36,7 +39,9 @@ def test_valid_signal_verifies_and_exposes_the_sa_identity() -> None:
 
 
 @given(
-    field=st.sampled_from(["instrument", "side", "action", "size_fraction", "seq", "created_ms"]),
+    field=st.sampled_from(
+        ["instrument", "side", "action", "size_fraction", "seq", "created_ms", "bar_open_ms"]
+    ),
     shift=st.integers(1, 5),
 )
 def test_sep_3_4_altering_the_payload_after_signing_fails_verification(
@@ -52,6 +57,7 @@ def test_sep_3_4_altering_the_payload_after_signing_fails_verification(
         "size_fraction": 0.99,
         "seq": 1 + shift,
         "created_ms": T0_MS + shift,
+        "bar_open_ms": T0_MS - 60_000 + shift,
     }[field]
     if field == "seq":
         sig["prev"] = "a" * 64
@@ -215,3 +221,109 @@ def test_sep_2_4_property_signal_from_a_revoked_device_key_always_fails(
     rev = sign_revocation(p.sa, p.pubkey, revoked_at)
     with pytest.raises(SignalError, match="revoked"):
         verify_signal_event(ev, revoked_at + lag, revocations=[rev])
+
+
+# ---------------------------------------------------------------- SEP-3.18: the bar a signal names
+
+
+@given(shift=st.integers(1, 10**6))
+def test_sep_3_18_editing_bar_open_after_signing_fails_a_public_signal(shift: int) -> None:
+    p = Provider()
+    ev = build_signal_event(p.device, p.next_signal(), p.delegation)
+    data = json.loads(ev.content)
+    data["bar_open_ms"] += shift
+    with pytest.raises(SignalError, match="altered"):
+        verify_signal_event(ev.model_copy(update={"content": json.dumps(data)}), NOW)
+
+
+@given(shift=st.integers(1, 10**6))
+def test_sep_3_18_editing_bar_open_breaks_the_private_commitment_digest(shift: int) -> None:
+    p = Provider()
+    sig = p.next_signal()
+    com, _ = verify_commitment_event(build_commitment_event(p.device, sig, p.delegation), NOW)
+    edited = sig.model_copy(update={"bar_open_ms": sig.bar_open_ms + shift})
+    with pytest.raises(SignalError, match="hashes to"):
+        check_reveal(com, edited.model_dump_json())
+    assert check_reveal(com, sig.model_dump_json()) == sig
+
+
+@given(shift=st.integers(1, 10**6))
+def test_sep_3_18_editing_a_private_signal_event_after_signing_fails(shift: int) -> None:
+    p = Provider()
+    follower = DeviceKey.generate()
+    sig = p.next_signal()
+    ev = build_private_signal_event(p.device, sig, p.delegation, follower.pubkey_hex)
+    edited = sig.model_copy(update={"bar_open_ms": sig.bar_open_ms + shift})
+    forged = build_private_signal_event(p.device, edited, p.delegation, follower.pubkey_hex)
+    assert open_private_signal(forged, follower, NOW).signal.bar_open_ms == edited.bar_open_ms
+    # the forged event is a new event with a new id: the original id and signature do not cover it
+    assert forged.id != ev.id and forged.sig != ev.sig
+    with pytest.raises(SignalError, match="altered"):
+        open_private_signal(forged.model_copy(update={"id": ev.id, "sig": ev.sig}), follower, NOW)
+
+
+def test_sep_3_18_a_v1_signal_or_one_without_bar_open_ms_is_refused() -> None:
+    p = Provider()
+    good = p.next_signal().model_dump()
+    for bad in (
+        {**good, "v": 1},
+        {k: v for k, v in good.items() if k != "bar_open_ms"},
+        {k: v for k, v in good.items() if k != "bar_open_ms"} | {"v": 1},
+        {**good, "bar_open_ms": -1},
+    ):
+        junk = build_event(p.device, 9317, json.dumps(bad), [delegation_tag(p.delegation)])
+        with pytest.raises(SignalError, match="signal content invalid"):
+            verify_signal_event(junk, NOW)
+
+
+def _bar_signal(created_ms: int, bar_open_ms: int, timeframe: int) -> Signal:
+    return (
+        Provider()
+        .next_signal(at_ms=created_ms, timeframe=timeframe)
+        .model_copy(update={"bar_open_ms": bar_open_ms})
+    )
+
+
+def _bar_ok(created_ms: int, bar_open_ms: int, tf: int, grace_ms: int, skew_ms: int) -> bool:
+    try:
+        check_bar(_bar_signal(created_ms, bar_open_ms, tf), tf, grace_ms, skew_ms)
+    except SignalError:
+        return False
+    return True
+
+
+def test_sep_3_18_bar_edges_are_exact_to_the_millisecond() -> None:
+    tf, grace, skew, created = 60, 10_000, 5_000, 10_000_000_000
+    bar = tf * 1000
+    # future edge: close == created + skew is accepted, one ms more is not
+    assert _bar_ok(created, created + skew - bar, tf, grace, skew)
+    assert not _bar_ok(created, created + skew - bar + 1, tf, grace, skew)
+    # stale edge: created - close == bar + grace - 1 is accepted, bar + grace is not
+    assert _bar_ok(created, created - (bar + grace - 1) - bar, tf, grace, skew)
+    assert not _bar_ok(created, created - (bar + grace) - bar, tf, grace, skew)
+    # just-closed bar, any epoch alignment
+    assert _bar_ok(created, created - bar, tf, grace, skew)
+    assert _bar_ok(created, created - bar - 7, tf, grace, skew)
+
+
+def test_sep_3_18_rejections_say_why() -> None:
+    with pytest.raises(SignalError, match="bar not closed when the signal was created"):
+        check_bar(_bar_signal(1_000_000, 1_000_000, 60), 60, 0, 0)
+    with pytest.raises(SignalError, match="decided on bar"):
+        check_bar(_bar_signal(10_000_000, 1_000_000, 60), 60, 0, 0)
+
+
+@given(
+    created=st.integers(10**12, 10**12 + 10**9),
+    tf=st.sampled_from([1, 60, 900, 3600, 86_400, 7 * 86_400]),
+    offset=st.integers(-3 * 7 * 86_400_000, 3 * 7 * 86_400_000),
+    grace=st.integers(0, 60_000),
+    skew=st.integers(0, 60_000),
+)
+def test_sep_3_18_property_only_the_latest_closed_bar_is_accepted(
+    created: int, tf: int, offset: int, grace: int, skew: int
+) -> None:
+    bar = tf * 1000
+    close = created + offset
+    expected = close <= created + skew and created - close < bar + grace
+    assert _bar_ok(created, close - bar, tf, grace, skew) is expected

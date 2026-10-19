@@ -246,7 +246,7 @@ func (a actor) signal(tf int64, seq int) *nostr.Event {
 
 func signalBy(sk string, tags nostr.Tags, tf int64, seq int, createdMS int64) *nostr.Event {
 	pub, _ := nostr.GetPublicKey(sk)
-	content := fmt.Sprintf(`{"v":1,"strategy_id":"s1","seq":%d,"prev":null,"instrument":"BINANCE:BTCUSDT","side":"buy","action":"open","size_fraction":0.1,"order_type":"market","timeframe":%d,"created_ms":%d}`, seq, tf, createdMS)
+	content := fmt.Sprintf(`{"v":2,"strategy_id":"s1","seq":%d,"prev":null,"instrument":"BINANCE:BTCUSDT","side":"buy","action":"open","size_fraction":0.1,"order_type":"market","timeframe":%d,"created_ms":%d,"bar_open_ms":%d}`, seq, tf, createdMS, createdMS-tf*1000)
 	ev := &nostr.Event{PubKey: pub, CreatedAt: nostr.Now(), Kind: protocol.KindSignal, Tags: append(nostr.Tags{}, tags...), Content: content}
 	_ = ev.Sign(sk)
 	return ev

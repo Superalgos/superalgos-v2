@@ -47,6 +47,7 @@ def signals(draw: st.DrawFn) -> Signal:
         stop_price=draw(price) if order_type == "stop" else draw(st.none() | price),
         timeframe=draw(st.integers(1, 10**7)),
         created_ms=draw(st.integers(1, 10**15)),
+        bar_open_ms=draw(st.integers(0, 10**15)),
     )
 
 
@@ -57,7 +58,14 @@ def test_sep_3_3_signal_json_round_trip_is_lossless(sig: Signal) -> None:
     assert again.model_dump_json() == sig.model_dump_json()
 
 
-REQUIRED_SIGNAL_FIELDS = ["instrument", "side", "action", "size_fraction", "created_ms"]
+REQUIRED_SIGNAL_FIELDS = [
+    "instrument",
+    "side",
+    "action",
+    "size_fraction",
+    "created_ms",
+    "bar_open_ms",
+]
 
 
 @pytest.mark.parametrize("missing", REQUIRED_SIGNAL_FIELDS)
@@ -70,7 +78,9 @@ def test_sep_3_2_signal_missing_a_required_field_is_rejected(missing: str) -> No
 
 @given(
     sig=signals(),
-    field=st.sampled_from(["instrument", "side", "action", "size_fraction", "created_ms"]),
+    field=st.sampled_from(
+        ["instrument", "side", "action", "size_fraction", "created_ms", "bar_open_ms"]
+    ),
 )
 def test_sep_3_2_property_any_required_field_missing(sig: Signal, field: str) -> None:
     data = sig.model_dump()
@@ -103,6 +113,8 @@ def test_sep_3_2_provider_identity_and_signature_belong_to_the_event() -> None:
         ({"instrument": "btcusdt"}, "pattern"),
         ({"timeframe": 0}, "greater than 0"),
         ({"extra": 1}, "Extra inputs"),
+        ({"v": 1}, "2"),
+        ({"bar_open_ms": -1}, "greater than or equal to 0"),
         ({"size_fraction": float("nan")}, "finite"),
     ],
 )

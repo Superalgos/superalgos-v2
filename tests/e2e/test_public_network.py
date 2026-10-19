@@ -150,6 +150,7 @@ def test_sep_3_39_an_unregistered_pubkey_cannot_publish(public_run: Run) -> None
     sig = Signal(
         strategy_id="spam", seq=1, prev=None, instrument="BINANCE:BTCUSDT", side="buy", action="open", size_fraction=0.5,
         order_type="market", timeframe=TIMEFRAME_S, created_ms=int(time.time() * 1000),
+        bar_open_ms=int(time.time() * 1000) - TIMEFRAME_S * 1000,
     )  # fmt: skip
     accepted, message = publish(public_run.relay.url, build_signal_event(stranger, sig, delegation))
     assert not accepted and message.startswith("blocked:") and "registered" in message, message

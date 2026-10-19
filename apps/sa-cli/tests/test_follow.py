@@ -57,7 +57,9 @@ def provider_signal(demo: Cli, seq: int = 1, prev: str | None = None, **kw: Any)
         "strategy_id": "s", "seq": seq, "prev": prev, "instrument": "BINANCE:BTCUSDT", "side": "buy", "action": "open",
         "size_fraction": 0.5, "order_type": "market", "timeframe": 3600, "created_ms": int(time.time() * 1000),
     }  # fmt: skip
-    ev = build_signal_event(device, Signal.model_validate({**base, **kw}), delegation)
+    merged = {**base, **kw}
+    merged.setdefault("bar_open_ms", merged["created_ms"] - merged["timeframe"] * 1000)
+    ev = build_signal_event(device, Signal.model_validate(merged), delegation)
     return ev.model_dump_json(), device.pubkey_hex
 
 

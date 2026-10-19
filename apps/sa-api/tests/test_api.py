@@ -256,7 +256,7 @@ def sample_signal(seq: int, instrument: str = "BINANCE:BTCUSDT") -> str:
     return Signal(
         strategy_id="s", seq=seq, prev=None if seq == 1 else "a" * 64, instrument=instrument,
         side="buy", action="open", size_fraction=0.5, order_type="market", timeframe=3600,
-        created_ms=1_700_000_000_000 + seq,
+        created_ms=1_700_000_000_000 + seq, bar_open_ms=1_700_000_000_000 + seq - 3_600_000,
     ).model_dump_json()  # fmt: skip
 
 

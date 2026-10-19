@@ -34,6 +34,7 @@ def make_chain(n: int = 4) -> tuple[Bundle, DeviceKey, SAKey]:
             strategy_id="s", seq=i + 1, prev=prev, instrument="BINANCE:BTCUSDT", side="buy" if buy else "sell",
             action="open" if buy else "close", size_fraction=0.5 if buy else 1.0, order_type="market", timeframe=3600,
             created_ms=now_ms + i * 1000,
+            bar_open_ms=now_ms + i * 1000 - 3_600_000,
         )  # fmt: skip
         ev = build_signal_event(device, sig, delegation)
         events.append(ev)
@@ -116,7 +117,8 @@ def test_verify_explains_private_signals_and_unknown_files(cli: Cli, tmp_path: P
     sa, device, other = SAKey.generate(), DeviceKey.generate(), DeviceKey.generate()
     delegation = sign_delegation(sa, device.pubkey_hex, 4_000_000_000)
     sig = Signal(strategy_id="s", seq=1, prev=None, instrument="BINANCE:BTCUSDT", side="buy", action="open",
-                 size_fraction=0.5, order_type="market", timeframe=3600, created_ms=int(time.time() * 1000))  # fmt: skip
+                 size_fraction=0.5, order_type="market", timeframe=3600, created_ms=int(time.time() * 1000),
+                 bar_open_ms=int(time.time() * 1000) - 3_600_000)  # fmt: skip
     private = tmp_path / "private.json"
     private.write_text(
         build_private_signal_event(device, sig, delegation, other.pubkey_hex).model_dump_json()
