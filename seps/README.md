@@ -32,9 +32,9 @@ SEPs change by pull request, in the same pull request as the code they describe.
 | SEP | Title | Status | Criteria done/total |
 |---|---|---|---|
 | [0](sep-0000.md) | Project scope and principles | Accepted | n/a |
-| [1](sep-0001.md) | Cross-cutting | Accepted | 8/16 |
+| [1](sep-0001.md) | Cross-cutting | Accepted | 9/19 |
 | [2](sep-0002.md) | SA identity | Accepted | 4/7 |
-| [3](sep-0003.md) | Verifiable signals | Accepted | 36/44 |
+| [3](sep-0003.md) | Verifiable signals | Accepted | 38/46 |
 | [4](sep-0004.md) | Strategy authoring and backtest | Accepted | 3/7 |
 | [5](sep-0005.md) | Visual designer | Implemented | 17/17 |
 | [6](sep-0006.md) | More markets | Draft | 0/4 |
@@ -45,7 +45,7 @@ SEPs change by pull request, in the same pull request as the code they describe.
 | [11](sep-0011.md) | Mobile steering app | Draft | 0/4 |
 | [12](sep-0012.md) | Guided install and setup (B2C) | Accepted | 5/23 |
 | [13](sep-0013.md) | Indicators (data mining, v1 parity) | Draft | 0/6 |
-| [14](sep-0014.md) | Follower risk controls | Draft | 0/4 |
+| [14](sep-0014.md) | Follower risk controls | Accepted | 1/5 |
 | [15](sep-0015.md) | Explain and notify | Draft | 0/4 |
 | [16](sep-0016.md) | Documentation | Draft | 0/6 |
 | [17](sep-0017.md) | Discovery (relays and providers) | Draft | 0/6 |

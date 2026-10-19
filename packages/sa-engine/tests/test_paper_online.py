@@ -39,7 +39,7 @@ def test_run_paper_two_minute_smoke() -> None:
 
 
 def test_follower_executes_a_forced_intent() -> None:
-    ex = FollowerExecutor("BINANCE:BTCUSDT", 10_000, log_level="ERROR")
+    ex = FollowerExecutor("BINANCE:BTCUSDT", 10_000, disaster_stop_pct=0, log_level="ERROR")
     now = int(time.time() * 1000)
     ex.submit(
         OrderIntent(

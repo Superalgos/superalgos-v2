@@ -224,14 +224,17 @@ def signal_status(anchored_ms: int | None) -> Literal["out", "waiting_for_time_s
 
 
 def follower_outcome(
-    status: str, placed: bool, reason: str, exec_reason: str
+    status: str, placed: bool, queued: bool, reason: str, exec_reason: str
 ) -> tuple[Literal["executed", "rejected", "pending"], str]:
     """The follower's ledger row as the follower sees it: executed (an order was placed), rejected (failed a check, or
-    accepted but not placeable, with the reason the follower recorded), or still pending."""
+    accepted but not placeable, with the reason the follower recorded), or still pending (not decided yet, or queued
+    for the exchange and waiting for its event)."""
     if status == "rejected":
         return "rejected", reason
     if status == "accepted":
-        return ("executed", exec_reason) if placed else ("rejected", exec_reason or reason)
+        if placed:
+            return "executed", exec_reason
+        return ("pending", exec_reason) if queued else ("rejected", exec_reason or reason)
     return "pending", reason
 
 
@@ -697,7 +700,7 @@ class Service:
                 db.row_factory = sqlite3.Row
                 rows = db.execute(
                     "SELECT event_id, provider, seq, ref, received_ms, created_ms, status, reason, signal_json,"
-                    " placed, exec_reason FROM signals ORDER BY received_ms DESC, event_id LIMIT ?",
+                    " placed, queued, exec_reason FROM signals ORDER BY received_ms DESC, event_id LIMIT ?",
                     (limit,),
                 ).fetchall()
         except sqlite3.Error as exc:
@@ -718,7 +721,11 @@ class Service:
             )
             sig = _signal_of(r["signal_json"])
             outcome, reason = follower_outcome(
-                str(r["status"]), bool(r["placed"]), str(r["reason"]), str(r["exec_reason"])
+                str(r["status"]),
+                bool(r["placed"]),
+                bool(r["queued"]),
+                str(r["reason"]),
+                str(r["exec_reason"]),
             )
             out.append(
                 m.FollowerSignal(

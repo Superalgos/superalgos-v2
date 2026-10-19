@@ -172,6 +172,53 @@ def test_relay_mode_runs_the_bot_in_a_helper_thread_and_nautilus_in_the_main_thr
     assert fake_nautilus.instances[0].thread == threading.main_thread().name
 
 
+def test_signals_reach_a_bot_whose_loop_runs_off_the_main_thread(
+    demo: Cli, relay: ThreadedRelay, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The ledger is opened on the main thread but written by the bot's helper thread (Nautilus holds the main one):
+    every relay signal used to fail with sqlite3.ProgrammingError and `sa follow` reported received 0."""
+
+    class WaitingExecutor(FakeFollowerExecutor):
+        def run(self, duration_s: float | None = None) -> FakePaperReport:
+            self.thread = threading.current_thread().name
+            deadline = time.time() + 30
+            while not self.submitted and time.time() < deadline:
+                time.sleep(0.02)
+            return FakePaperReport(len(self.submitted))
+
+    FakeFollowerExecutor.instances = []
+    monkeypatch.setattr(paper_module, "FollowerExecutor", WaitingExecutor)
+    h = demo.home()
+    device, delegation, sa = h.load_device(), h.load_delegation(h.load_device()), h.load_sa()
+    relay.inject(
+        ruleset_event(
+            device, sign_ruleset(sa, device.pubkey_hex, 3600, tiers=DEFAULT_TIERS), delegation
+        )
+    )
+    ready = tmp_path / "ready"
+
+    def publish_after_ready() -> None:
+        deadline = time.time() + 30
+        while not ready.exists() and time.time() < deadline:
+            time.sleep(0.02)
+        text, _ = signed(demo)
+        relay.inject(
+            build_signal_event(
+                device, Signal.model_validate_json(json.loads(text)["content"]), delegation
+            )
+        )
+
+    publisher = threading.Thread(target=publish_after_ready)
+    publisher.start()
+    out = demo.ok("follow", "--relay", relay.url, "--provider", device.pubkey_hex, "--ledger", tmp_path / "l.sqlite",
+                  "--ready-file", ready, "--duration", "30", "--reorder-wait", "0")  # fmt: skip
+    publisher.join()
+    assert (
+        '"received": 1' in out and '"accepted": 1' in out and '"paper": {"orders_filled": 1}' in out
+    )
+    assert len(FakeFollowerExecutor.instances[0].submitted) == 1
+
+
 def test_a_bot_failure_in_the_helper_thread_is_reported(
     demo: Cli, relay: ThreadedRelay, tmp_path: Path, fake_nautilus: type[FakeFollowerExecutor]
 ) -> None:

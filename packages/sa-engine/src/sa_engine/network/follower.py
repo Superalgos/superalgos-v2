@@ -58,7 +58,7 @@ from sa_core.signals import (
 from websockets.exceptions import WebSocketException
 
 from sa_engine.intent import OrderIntent
-from sa_engine.network.executor import PaperExecutor
+from sa_engine.network.executor import Executor
 from sa_engine.network.ledger import Ledger, LedgerRow
 
 log = logging.getLogger("sa.follower")
@@ -88,7 +88,7 @@ class FollowerBot:
         delegation: Delegation,
         relay_url: str,
         providers: Sequence[str],
-        executor: PaperExecutor,
+        executor: Executor,
         ledger: Ledger,
         verifiers: Mapping[str, Anchor] | None = None,
         rules: Mapping[str, ProviderRuleSet] | None = None,

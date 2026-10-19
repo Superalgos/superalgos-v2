@@ -237,7 +237,7 @@ class World:
 
 def write_ledger(home: Path, rows: list[dict[str, object]]) -> None:
     """A follower's real ledger (`sa_engine`'s schema) under ``home``: one row per dict, ``event_id`` and ``provider``
-    required; ``executed`` (bool) marks an accepted row whose order was placed, ``exec_reason`` the note on it."""
+    required; ``executed`` (bool) marks an accepted row whose order was placed, ``exec_reason`` the note on it, ``queued`` (bool) a not-yet-placed order waiting for the exchange."""
     from sa_engine.network.executor import Execution
     from sa_engine.network.ledger import Ledger
 
@@ -253,7 +253,10 @@ def write_ledger(home: Path, rows: list[dict[str, object]]) -> None:
         if "executed" in r:
             ledger.set_execution(
                 Execution(
-                    str(r["event_id"]), bool(r["executed"]), reason=str(r.get("exec_reason", ""))
+                    str(r["event_id"]),
+                    bool(r["executed"]),
+                    reason=str(r.get("exec_reason", "")),
+                    queued=bool(r.get("queued", False)),
                 )
             )
     ledger.close()

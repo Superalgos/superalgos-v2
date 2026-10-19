@@ -1,4 +1,4 @@
-"""Paper executors for followers.
+"""Executors for followers: where an accepted signal becomes an order.
 
 * :class:`SimulatedPaperExecutor` is a deterministic spot account (long-only, 0.1% fees) that fills
   against a :class:`~sa_engine.network.replay.PriceFeed`. It sizes every order with the shared
@@ -6,8 +6,11 @@
   Used for replayed demos and tests: no network, no Nautilus node.
 * :class:`NautilusPaperExecutor` hands intents to :class:`sa_engine.paper.FollowerExecutor` (live Binance
   data, simulated fills). Nautilus must run in the main thread, so the bot runs in a helper thread.
+* :class:`NautilusTestnetExecutor` hands intents to :class:`sa_engine.testnet.SpotTestnetFollower`: real orders on the
+  follower's own Binance *spot testnet* account. Order ids and fills come back through :meth:`poll`.
 
-Neither can reach an exchange order endpoint.
+The simulated and paper executors cannot reach an exchange order endpoint. The testnet executor reaches only
+the Binance spot testnet (its constructor refuses any other environment or endpoint override).
 """
 
 from __future__ import annotations
@@ -18,7 +21,7 @@ from typing import Any, Protocol
 
 from sa_engine.intent import OrderIntent, normalize_instrument
 from sa_engine.network.replay import PriceFeed
-from sa_engine.sizing import size_intent
+from sa_engine.sizing import size_intent, uses_capital_basis
 
 DEFAULT_FEE_RATE = Decimal("0.001")
 
@@ -29,7 +32,7 @@ def _text(value: Decimal) -> str:
 
 @dataclass(frozen=True)
 class Execution:
-    """Outcome of handing one received signal to a paper account."""
+    """Outcome of handing one received signal to an account."""
 
     ref: str  # id of the signal event
     placed: bool
@@ -41,9 +44,13 @@ class Execution:
     ts_ms: int | None = None
     equity_before: float | None = None
     ref_price: float | None = None
+    venue_order_id: str | None = None  # the exchange's id for the order (testnet executor only)
+    queued: bool = False  # handed to the node, not at the exchange yet: a later event decides
 
 
-class PaperExecutor(Protocol):
+class Executor(Protocol):
+    """Anything that turns a verified signal into an order: simulated, paper, or on the Binance testnet."""
+
     async def execute(self, ref: str, intent: OrderIntent, now_ms: int) -> Execution: ...
     async def poll(self, now_ms: int) -> list[Execution]: ...
     def snapshot(self, now_ms: int) -> dict[str, Any]: ...
@@ -220,6 +227,40 @@ class NautilusPaperExecutor:
 
     async def poll(self, now_ms: int) -> list[Execution]:
         return []
+
+    def snapshot(self, now_ms: int) -> dict[str, Any]:
+        return {"submitted": self._n, "results": len(self.inner.results)}
+
+
+class NautilusTestnetExecutor:
+    """Adapter to :class:`sa_engine.testnet.SpotTestnetFollower`: orders go to the Binance spot testnet.
+
+    ``execute`` only queues the order (the node runs in another thread); the exchange's order id, rejections and
+    fills arrive as events and are returned by :meth:`poll`, which the follower bot writes to the ledger.
+    """
+
+    def __init__(self, inner: Any) -> None:
+        self.inner = inner
+        self._n = 0
+
+    async def execute(self, ref: str, intent: OrderIntent, now_ms: int) -> Execution:
+        self.inner.submit(intent, ref)
+        self._n += 1
+        if not uses_capital_basis(intent):  # a close may wait for its entry: it is placed once the exchange says so
+            return Execution(
+                ref,
+                False,
+                reason="queued for the Binance testnet node; not at the exchange yet",
+                ts_ms=now_ms,
+                queued=True,
+            )
+        return Execution(
+            ref, True, reason="submitted to the Binance testnet node; waiting for the exchange", ts_ms=now_ms
+        )
+
+    async def poll(self, now_ms: int) -> list[Execution]:
+        out: list[Execution] = self.inner.drain()
+        return out
 
     def snapshot(self, now_ms: int) -> dict[str, Any]:
         return {"submitted": self._n, "results": len(self.inner.results)}

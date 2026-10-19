@@ -7,6 +7,8 @@ Layout (``--home`` or ``$SA_HOME``, default ``~/.superalgos``)::
     identity.json     public facts: mode, SA address, device pubkey
     delegation.json   the SA identity's signed delegation of the device key
     allocation.json   the last power allocation signed (its nonce only ever grows)
+    exchange/<name>.key.json   encrypted exchange API key and secret, one envelope per exchange (mode 0600)
+    profile.json      the follower's own settings (plain JSON, no secrets; absent means the defaults)
 
 The passphrase comes from ``$SA_PASSPHRASE`` or an interactive prompt. Nothing here ever prints a secret.
 """
@@ -26,10 +28,13 @@ from pydantic import BaseModel, ConfigDict
 from sa_core.keys import (
     SCRYPT_N_DEFAULT,
     DeviceKey,
+    ExchangeCredentials,
     KeyStoreError,
     SAKey,
     load_device_key,
+    load_exchange_credentials,
     load_sa_key,
+    save_exchange_credentials,
 )
 from sa_core.models import Delegation, PowerAllocation
 
@@ -86,6 +91,13 @@ class Home:
     def allocation_path(self) -> Path:
         return self.root / "allocation.json"
 
+    @property
+    def profile_path(self) -> Path:
+        return self.root / "profile.json"
+
+    def exchange_path(self, name: str) -> Path:
+        return self.root / "exchange" / f"{name}.key.json"
+
     # ------------------------------------------------------------------ secrets
     @property
     def scrypt_n(self) -> int:
@@ -115,6 +127,37 @@ class Home:
             raise CliError("the two passphrases differ; nothing was written")
         self._cached = first
         return first
+
+    def ask_secret(self, label: str) -> str:
+        """Prompt for a secret without echo. Needs a terminal."""
+        if not self._interactive():
+            raise CliError(
+                f"no {label}: set its environment variable, or run `sa` in a terminal to be asked for it"
+            )
+        return self._prompt(f"{label}: ")
+
+    def save_exchange(self, name: str, credentials: ExchangeCredentials) -> Path:
+        path = self.exchange_path(name)
+        if path.exists():
+            raise CliError(
+                f"{path} already exists; delete it first to store new {name} credentials"
+            )
+        try:
+            save_exchange_credentials(
+                path, name, credentials, self.passphrase(confirm=True), n=self.scrypt_n
+            )
+        except KeyStoreError as exc:
+            raise CliError(str(exc)) from exc
+        return path
+
+    def load_exchange(self, name: str) -> ExchangeCredentials:
+        path = self.exchange_path(name)
+        if not path.exists():
+            raise CliError(f"no {name} credentials; run `sa exchange add {name}`")
+        try:
+            return load_exchange_credentials(path, name, self.passphrase())
+        except KeyStoreError as exc:
+            raise CliError(str(exc)) from exc
 
     def load_device(self) -> DeviceKey:
         if not self.device_path.exists():

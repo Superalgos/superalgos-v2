@@ -136,7 +136,7 @@ class ScriptedFollower(FollowerStrategy):
     """Feeds the follower bar closes as prices and executes scripted intents at given bar numbers."""
 
     def __init__(self, script: dict[int, OrderIntent]) -> None:
-        super().__init__(FollowerConfig(instrument_id=IID, order_id_tag="009"))
+        super().__init__(FollowerConfig(instrument_id=IID, order_id_tag="009", disaster_stop_pct=0))
         self.script = script
         self.n = 0
 
@@ -218,15 +218,15 @@ def test_follower_sizes_open_by_fraction_of_capital_and_close_by_fraction_of_pos
 def test_follower_limit_and_unplaceable_intents(fixture_catalog: ParquetDataCatalog) -> None:
     f = run_follower(
         {
-            2: intent(order_type="limit", limit_price=1.0),  # far below: rests unfilled
-            3: intent(side="sell", action="close"),  # nothing to close
+            2: intent(side="sell", action="close"),  # nothing to close, no entry in flight
+            3: intent(order_type="limit", limit_price=1.0),  # far below: rests unfilled
             4: intent(side="sell", action="open"),  # shorting unsupported on spot
             5: intent(instrument="BINANCE:ETHUSDT"),  # wrong market
         },
         fixture_catalog,
     )
-    assert [r.placed for r in f.results] == [True, False, False, False]
-    assert "nothing to close" in f.results[1].reason
+    assert [r.placed for r in f.results] == [False, True, False, False]
+    assert "nothing to close" in f.results[0].reason
     assert "short selling" in f.results[2].reason
     assert "this executor trades BTCUSDT.BINANCE" in f.results[3].reason
     assert f.fills == []
@@ -259,9 +259,9 @@ def test_follower_waits_for_the_first_price(fixture_catalog: ParquetDataCatalog)
     assert len(f.results) == 1 and f.results[0].placed and len(f.fills) == 1
 
 
-def test_execution_base_hooks_are_noops() -> None:
-    f = FollowerStrategy(FollowerConfig(instrument_id=IID, order_id_tag="003"))
-    f._filled("t", 1.0, 1.0, 1, True)
+def test_follower_hooks_ignore_unknown_orders_and_partial_fills() -> None:
+    f = FollowerStrategy(FollowerConfig(instrument_id=IID, order_id_tag="003", disaster_stop_pct=0))
+    f._filled("t", 1.0, 1.0, 1, False)  # a partial fill of an unknown order changes nothing
     f._order_ended("t", "x")
     f._quote(None)
     assert isinstance(f, ExecutionBase)
@@ -278,7 +278,7 @@ def test_paper_helpers() -> None:
 
 
 def test_node_config_uses_public_data_and_a_sandbox_exec_client_only() -> None:
-    f = FollowerExecutor(INSTRUMENT, 5_000)
+    f = FollowerExecutor(INSTRUMENT, 5_000, disaster_stop_pct=0)
     cfg = f.session.node_config()
     data_cfg = cfg.data_clients["BINANCE"]
     exec_cfg = cfg.exec_clients["BINANCE"]
@@ -295,13 +295,13 @@ def test_run_paper_validates_before_touching_the_network() -> None:
     with pytest.raises(StrategyValidationError, match=r"\$\.timeframe"):
         run_paper({**good, "timeframe": "9m"}, INSTRUMENT, 100)
     with pytest.raises(ValueError, match="capital must be positive"):
-        FollowerExecutor(INSTRUMENT, -1)
+        FollowerExecutor(INSTRUMENT, -1, disaster_stop_pct=0)
     with pytest.raises(ValueError, match="not a symbol"):
-        FollowerExecutor("BTC USDT", 1)
+        FollowerExecutor("BTC USDT", 1, disaster_stop_pct=0)
 
 
 def test_session_needs_to_run_before_cross_thread_calls() -> None:
-    s = FollowerExecutor(INSTRUMENT, 100).session
+    s = FollowerExecutor(INSTRUMENT, 100, disaster_stop_pct=0).session
     with pytest.raises(RuntimeError, match="not running"):
         s.call_soon(lambda: None)
     s.stop()  # harmless before start
@@ -317,7 +317,7 @@ class FakeLoop:
 
 
 def test_follower_executor_queues_until_ready_then_dispatches_in_loop() -> None:
-    ex = FollowerExecutor(INSTRUMENT, 1_000)
+    ex = FollowerExecutor(INSTRUMENT, 1_000, disaster_stop_pct=0)
     executed: list[OrderIntent] = []
     ex.strategy.execute = executed.append  # type: ignore[method-assign,assignment]
     a, b = intent(size_fraction=0.1), intent(size_fraction=0.2)
@@ -333,7 +333,7 @@ def test_follower_executor_queues_until_ready_then_dispatches_in_loop() -> None:
 
 
 def test_follower_run_collects_a_report(monkeypatch: pytest.MonkeyPatch) -> None:
-    ex = FollowerExecutor(INSTRUMENT, 1_000)
+    ex = FollowerExecutor(INSTRUMENT, 1_000, disaster_stop_pct=0)
     ready_calls: list[FollowerExecutor] = []
 
     def fake_run(duration_s: float | None, on_ready: Any) -> None:
@@ -350,7 +350,7 @@ def test_follower_run_collects_a_report(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 def test_report_defaults_final_equity_to_capital() -> None:
-    f = FollowerStrategy(FollowerConfig(instrument_id=IID, order_id_tag="004"))
+    f = FollowerStrategy(FollowerConfig(instrument_id=IID, order_id_tag="004", disaster_stop_pct=0))
     rep = _report(f, INSTRUMENT, 1.5, 500.0, 0, 0)
     assert rep.final_equity == 500.0 and rep.orders_filled == 0 and rep.trades == []
 
@@ -364,7 +364,7 @@ def test_example_documents_compile_for_paper() -> None:
 
 
 def test_quote_tick_updates_reference_price(fixture_catalog: ParquetDataCatalog) -> None:
-    f = FollowerStrategy(FollowerConfig(instrument_id=IID, order_id_tag="005"))
+    f = FollowerStrategy(FollowerConfig(instrument_id=IID, order_id_tag="005", disaster_stop_pct=0))
     tick = QuoteTick(
         cat.instrument_for("BTCUSDT").id,
         Price.from_str("100.00"),

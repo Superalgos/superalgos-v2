@@ -70,7 +70,7 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 # The only four modules that touch Nautilus classes (subclassing Any, untyped calls). Everything
 # else in every package stays fully `--strict`.
-module = ["sa_engine.compile", "sa_engine.catalog", "sa_engine.backtest", "sa_engine.paper"]
+module = ["sa_engine.compile", "sa_engine.catalog", "sa_engine.backtest", "sa_engine.paper", "sa_engine.node", "sa_engine.testnet"]
 disallow_subclassing_any = false
 disallow_untyped_calls = false
 warn_return_any = false
@@ -90,6 +90,7 @@ markers = [
     "online: touches the network (public RPC, OTS calendars, public TSAs); skipped unless SA_ONLINE=1",
     "e2e: runs real processes (sarelay, provider, followers); `make e2e`",
     "slow: slow test, still offline",
+    "testnet: needs a Binance spot testnet API key (SA_BINANCE_TESTNET_API_KEY / _SECRET); implies online",
 ]
 
 [tool.coverage.run]

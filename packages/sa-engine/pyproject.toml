@@ -42,6 +42,7 @@ testpaths = ["tests"]
 markers = [
   "slow: heavy backtests on real data (needs downloaded data)",
   "online: needs network access (Binance public endpoints)",
+  "testnet: needs a Binance spot testnet API key (SA_BINANCE_TESTNET_API_KEY / _SECRET); implies online",
 ]
 addopts = "-m 'not slow and not online'"
 asyncio_mode = "auto"

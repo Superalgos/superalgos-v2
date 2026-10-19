@@ -14,6 +14,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from nautilus_trader.config import StrategyConfig
+from nautilus_trader.execution.algorithm import ExecAlgorithm
 from nautilus_trader.model.data import Bar, BarType, QuoteTick
 from nautilus_trader.model.enums import OrderSide
 from nautilus_trader.model.events import (
@@ -25,6 +26,8 @@ from nautilus_trader.model.events import (
 )
 from nautilus_trader.model.identifiers import ClientOrderId, InstrumentId
 from nautilus_trader.model.instruments import Instrument
+from nautilus_trader.model.objects import Price, Quantity
+from nautilus_trader.model.orders import Order
 from nautilus_trader.trading.strategy import Strategy
 
 from sa_engine.brain import Cancel, Command, PositionState, StrategyBrain, Submit
@@ -79,6 +82,7 @@ class ExecutionBase(Strategy):
         self.rejections: list[str] = []
         self.quotes_seen = 0
         self.final_equity: float | None = None
+        self.final_working_orders: int = 0  # orders still resting when the node stopped
 
     # -- overridable events
     def _filled(self, tag: str, price: float, qty: float, ts: int, done: bool) -> None:
@@ -108,6 +112,10 @@ class ExecutionBase(Strategy):
         avg = float(positions[0].avg_px_open) if qty > 0 else None
         return PositionState(qty, avg)
 
+    def working_orders(self) -> int:
+        """Orders this strategy has submitted that are not yet filled, cancelled or rejected."""
+        return sum(1 for o in self.cache.orders(instrument_id=self._iid, strategy_id=self.id) if not o.is_closed)
+
     def _size(self, intent: OrderIntent) -> SizeResult:
         inst = self._instrument
         assert inst is not None
@@ -120,15 +128,15 @@ class ExecutionBase(Strategy):
             min_quantity=inst.min_quantity.as_decimal() if inst.min_quantity is not None else Decimal(0),
         )
 
-    def _place(self, intent: OrderIntent, tag: str, *, reduce_only: bool) -> str:
-        """Size and submit ``intent``. Returns "" on success or the reason it was not placed."""
-        assert self._instrument is not None
-        sized = self._size(intent)
-        if sized.quantity is None:
-            return sized.reason
-        return self._submit_sized(intent, tag, sized.quantity, reduce_only=reduce_only)
+    def exec_algorithms(self) -> list[ExecAlgorithm]:
+        """Execution algorithms the node must register next to this strategy (none by default)."""
+        return []
 
-    def _submit_sized(self, intent: OrderIntent, tag: str, quantity: Decimal, *, reduce_only: bool) -> str:
+    def _stop_order(self, side: OrderSide, qty: Quantity, trigger: Price, *, reduce_only: bool) -> Order:
+        """A signalled stop. Here it goes to the venue as a stop-market order; followers override it."""
+        return self.order_factory.stop_market(self._iid, side, qty, trigger, reduce_only=reduce_only)
+
+    def _submit_sized(self, intent: OrderIntent, tag: str, quantity: Decimal, *, reduce_only: bool) -> None:
         inst = self._instrument
         assert inst is not None
         side = OrderSide.BUY if intent.side == "buy" else OrderSide.SELL
@@ -142,13 +150,10 @@ class ExecutionBase(Strategy):
             )
         else:
             assert intent.stop_price is not None
-            order = self.order_factory.stop_market(
-                self._iid, side, qty, inst.make_price(intent.stop_price), reduce_only=reduce_only
-            )
+            order = self._stop_order(side, qty, inst.make_price(intent.stop_price), reduce_only=reduce_only)
         self._tag_by_id[order.client_order_id] = tag
         self._id_by_tag[tag] = order.client_order_id
         self.submit_order(order)
-        return ""
 
     def _cancel_tag(self, tag: str) -> bool:
         cid = self._id_by_tag.get(tag)
