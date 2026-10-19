@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Callable
 from decimal import Decimal
 from pathlib import Path
@@ -33,6 +34,9 @@ pytestmark = pytest.mark.e2e
 
 # default tier table (sa_core.power.DEFAULT_TIERS): tier index -> delay_fraction of the timeframe
 DELAY_FRACTION = {"t0": 0.0, "t2": 0.5, "zero": 2.0}
+
+# Machine-speed latency budgets run only locally (SA_PERF=1, `make perf`); CI never sets it. See AGENTS.md.
+PERF = os.environ.get("SA_PERF") == "1"
 
 
 def signals_sent(run: Run) -> int:
@@ -84,7 +88,8 @@ def test_sep_3_21_delivery_is_in_tier_order_and_on_schedule(public_run: Run) -> 
     print(
         f"\ndelivery lateness vs scheduled release: {describe_ms(late)} over {len(late)} deliveries"
     )
-    assert max(late) < 400, f"a delivery was {max(late):.0f} ms late: {describe_ms(late)}"
+    if PERF:
+        assert max(late) < 400, f"a delivery was {max(late):.0f} ms late: {describe_ms(late)}"
 
 
 def test_sep_3_6_top_tier_publish_to_receive_latency_p95_is_under_5_seconds(

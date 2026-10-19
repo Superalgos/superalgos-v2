@@ -68,6 +68,7 @@ demo-smoke:
 perf:
 	cd relay && SA_PERF=1 go test -count=1 -v -run 'TestPerf' ./...
 	cd web && bun install --frozen-lockfile && SA_PERF=1 bun test tests/designer-page.test.tsx
+	SA_PERF=1 $(UV) run pytest tests/e2e/test_public_network.py -o addopts="--strict-markers -ra" -m "e2e and not online" -k sep_3_21 -v -p no:cacheprovider
 
 web-check:
 	cd web && bun install --frozen-lockfile && bun run lint && bun run typecheck && bun test --coverage && bun run build
