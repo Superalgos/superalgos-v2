@@ -43,6 +43,9 @@ func run() error {
 		return nil
 	}
 	log := newLogger(cfg)
+	// Dependencies (eventstore/badger) write with the standard library log package; route those lines through
+	// the structured logger so every stderr line stays one JSON object.
+	slog.SetDefault(log)
 	if cfg.TimeScale != 1 {
 		log.Warn("time_scale is not 1: every tier delay is multiplied by it. Use 1 in production; other values are for tests", "time_scale", cfg.TimeScale)
 	}
