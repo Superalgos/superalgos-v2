@@ -8,9 +8,9 @@ require (
 	github.com/dgraph-io/badger/v4 v4.9.6
 	github.com/fiatjaf/eventstore v0.17.14
 	github.com/fiatjaf/khatru v0.19.1
-	github.com/nbd-wtf/go-nostr v0.52.1
+	github.com/nbd-wtf/go-nostr v0.52.3
 	github.com/pelletier/go-toml/v2 v2.4.3
-	golang.org/x/crypto v0.49.0
+	golang.org/x/crypto v0.58.0
 )
 
 require (
@@ -54,8 +54,8 @@ require (
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
 	golang.org/x/arch v0.22.0 // indirect
 	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546 // indirect
-	golang.org/x/net v0.52.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
+	golang.org/x/net v0.60.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
 
