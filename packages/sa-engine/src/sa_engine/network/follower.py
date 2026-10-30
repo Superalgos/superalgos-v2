@@ -66,6 +66,8 @@ from sa_engine.network.ledger import Ledger, LedgerRow
 
 log = logging.getLogger("sa.follower")
 
+_UNVERIFIED = "verification failed: "  # reason prefix of a row whose event did not pass id, signature or delegation
+
 
 @dataclass(frozen=True)
 class _Verified:
@@ -330,6 +332,11 @@ class FollowerBot:
         if source == "relay" and provider not in self.providers:
             return None
         known = self.ledger.get(ev.id)
+        if known is not None and known.reason.startswith(_UNVERIFIED):
+            # A copy that failed verification proves nothing about the event its id names (the relay is not trusted
+            # for content, SEP-3.47): forget it, so the genuine event is verified on its own merits.
+            self.ledger.discard(ev.id)
+            known = None
         if known is not None and known.status != "pending":
             return known  # redelivery
         rules = self.rules.get(provider)
@@ -344,7 +351,9 @@ class FollowerBot:
                 else verify_signal_event(ev, at, expected, revs)
             )
         except SignalError as exc:
-            return self._reject(ev, source, now_ms, f"verification failed: {exc}")
+            if known is not None:
+                return known  # a pending row came from a verified event; a bad copy never replaces it (SEP-3.47)
+            return self._reject(ev, source, now_ms, f"{_UNVERIFIED}{exc}")
         signal = signed.signal
         if rules is None and source != "file":
             return self._reject(ev, source, now_ms, "no rule set known for this provider", signal=signal)
