@@ -149,6 +149,10 @@ class Ledger:
             ),
         )
 
+    def discard(self, event_id: str) -> None:
+        """Delete the row of ``event_id`` (one recorded from an event that failed verification)."""
+        self._write("DELETE FROM signals WHERE event_id=?", (event_id,))
+
     def set_execution(self, ex: Execution) -> None:
         self._write(
             "UPDATE signals SET placed=?, filled=?, qty=COALESCE(?, qty), price=COALESCE(?, price),"
