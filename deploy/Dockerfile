@@ -3,7 +3,7 @@
 # Build from the repo root:  docker build -f deploy/Dockerfile -t superalgos-v2:demo .
 
 # Base images are pinned by digest (the tag is only a label); refresh them deliberately, see the README.
-FROM oven/bun:1-alpine@sha256:629e17411f1f129dbec3af78d5af9c9f2a937435c80349437206c6b0b7422373 AS web
+FROM oven/bun:1-alpine@sha256:4cf82f5686b196504fe119db3fcd9185b191f82ece82c40680e597228ec6070a AS web
 WORKDIR /src/web
 COPY web/package.json web/bun.lock ./
 RUN bun install --frozen-lockfile
