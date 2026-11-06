@@ -352,6 +352,32 @@ async def test_sep_3_31_tampered_or_wrongly_delegated_files_are_rejected(tmp_pat
     assert bot.executor.snapshot(NOW_MS)["fills"] == 0
 
 
+async def test_sep_3_47_a_forged_copy_under_the_genuine_id_never_blocks_the_genuine_signal(tmp_path: Path) -> None:
+    p = Identity()
+    bot = follower(tmp_path, p)
+    e1 = event(p, 1, None)
+    forged = await bot.ingest(e1.model_copy(update={"content": e1.content.replace('"buy"', '"sell"')}))
+    assert forged and forged.status == "rejected" and "verification failed" in forged.reason
+    row = await bot.ingest(e1)
+    assert row and row.status == "accepted" and row.filled and row.received_ms == NOW_MS
+    assert isinstance(bot.executor, SimulatedPaperExecutor)
+    assert [f.ref for f in bot.executor.fills] == [e1.id]
+    late = await bot.ingest(e1.model_copy(update={"sig": "0" * 128}))  # a forged copy after the genuine one
+    assert late and late.status == "accepted" and len(bot.ledger.rows()) == 1
+
+
+async def test_sep_3_47_a_forged_copy_never_replaces_a_pending_private_signal(tmp_path: Path) -> None:
+    p, me = Identity(), Identity()
+    bot = follower(tmp_path, p, rules=p.private_rules(), me=me)
+    sig = signal(p, 1, None)
+    cipher = build_private_signal_event(p.device, sig, p.delegation, me.pubkey, int(NOW))
+    assert (await bot.ingest(cipher)).status == "pending"  # type: ignore[union-attr]
+    kept = await bot.ingest(cipher.model_copy(update={"sig": "0" * 128}))
+    assert kept and kept.status == "pending"
+    done = await bot.ingest(build_commitment_event(p.device, sig, p.delegation, int(NOW)))
+    assert done and done.status == "accepted" and done.filled
+
+
 # ---------------------------------------------------------------- private signals
 
 
@@ -645,6 +671,50 @@ def test_sep_3_31_property_a_signal_file_with_any_character_changed_is_never_exe
         return row.status
 
     assert asyncio.run(go()) in {"unparsable", "rejected"}
+
+
+_FIELDS = ("content", "sig", "created_at", "tags")
+
+
+@settings(deadline=None, max_examples=60, suppress_health_check=[HealthCheck.function_scoped_fixture])
+@given(
+    copies=st.lists(
+        st.tuples(st.sampled_from(_FIELDS), st.floats(0, 1), st.sampled_from(list("0123456789abcdefxyz{}"))),
+        min_size=1,
+        max_size=3,
+    )
+)
+def test_sep_3_47_property_tampered_copies_delivered_first_never_stop_the_genuine_event(
+    copies: list[tuple[str, float, str]], tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    """Any copies carrying the genuine id but another body or signature, delivered first: the genuine one executes."""
+    p = Identity()
+    genuine = event(p, 1, None)
+
+    def tamper(field: str, position: float, char: str) -> NostrEvent:
+        if field == "created_at":
+            return genuine.model_copy(update={"created_at": genuine.created_at + 1 + int(position * 100)})
+        if field == "tags":
+            return genuine.model_copy(update={"tags": (*genuine.tags, ("t", char))})
+        if field == "sig" and char not in "0123456789abcdef":
+            char = "0"  # a relayed sig is parsed as hex (Hex128); model_copy skips that check
+        text: str = getattr(genuine, field)
+        i = min(int(position * len(text)), len(text) - 1)
+        return genuine.model_copy(update={field: text[:i] + char + text[i + 1 :]})
+
+    forged = [f for f in (tamper(*c) for c in copies) if f != genuine]
+
+    async def go() -> None:
+        bot = follower(tmp_path_factory.mktemp("forge"), p)
+        for f in forged:
+            row = await bot.ingest(f)
+            assert row is None or row.status == "rejected"
+        row = await bot.ingest(genuine)
+        assert row and row.status == "accepted" and row.filled
+        assert isinstance(bot.executor, SimulatedPaperExecutor)
+        assert [f.ref for f in bot.executor.fills] == [genuine.id]
+
+    asyncio.run(go())
 
 
 # ---------------------------------------------------------------- security review M3: revoked device keys
